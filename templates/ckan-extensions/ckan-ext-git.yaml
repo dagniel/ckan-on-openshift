@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-ext-git
+  annotations:
+    description: |-
+      Template for deploying CKAN extensions from git source/S2I build
+    iconClass: icon-python
+    openshift.io/display-name: Ckan extensions from git
+    tags: ckan,python,ckan-ext
+    template.openshift.io/long-description: >-
+      Template for deploying CKAN extensions from git source/S2I build
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: OUTPUT_IMG_NAME
+    displayName: ImageStream name for the output image
+    value: ckan
+    required: true
+  - name: OUTPUT_IMG_TAG
+    displayName: Tag name for the output image
+    value: "civity-dev"
+    required: true
+  - name: APPSRC_REPO_URL
+    displayName: Source code repository URL
+    description: The URL of the repository with your application source code.
+    value:
+    required: true
+  - name: APPSRC_REPO_AUTH
+    displayName: Source code secret for repository authentication
+    description: The referenced OKD secret used to authenticaate to the specified repository
+    value: image-builder-gitlab-auth
+  - name: APPSRC_REPO_REF
+    displayName: Source code repository Reference
+    description: >-
+      Set this to a branch name, tag or other ref of your repository if you are
+      not using the default branch.
+    value: develop
+  - name: BASEBUILDER_IMG_NAME
+    displayName: Base builder's source image
+    description: |-
+      Base builder's source image name used to create the app's specific builder
+      Must be in the form image:tag
+    value: "ckan"
+    required: true
+  - name: BASEBUILDER_IMG_TAG
+    displayName: Base builder's source image tag
+    value: "ckan-2.8.2"
+    required: true
+  - name: CKAN_EXT_SECRET
+    displayName: Reference to Secret
+    description: -|
+      Reference to Secret that holds the install_ckan_ext.sh to be run for installing the CKAN-extension
+    required: true
+    value: ckan-ext-git
+objects:
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    annotations:
+        description: |-
+          Holds the install_ckan_ext.sh file
+    labels:
+      app: ${NAME}
+      ckan.component: ckan-ext
+    name: ${NAME}-ext-git
+    namespace: ${NAMESPACE}
+  type: Opaque
+  stringData:
+    install_ckan_ext.sh: |-
+      # This file will be sourced inside the assemble script, given the right flags
+      # Its name must be "install_ckan_ext.sh"
+      # Sould contain operation on the source that was cloned with the S2I procedure
+
+      pip install .
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: -|
+        S2I build to install a CKAN-extension from git source
+
+        Essentially it is the same BuildConfig object with a Secret that holds the install_ckan_ext.sh file
+        which will be injected under $CKAN_CONFIG/install_ckan_ext.sh inside the container
+        and called by the assemble script when the $CKAN_IS_EXTENSION flag/env var is set to "true"
+    labels:
+      app: ${NAME}
+      ckan.component: ckan-ext
+    name: ${NAME}-ext-git
+    namespace: ${NAMESPACE}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${OUTPUT_IMG_NAME}:${OUTPUT_IMG_TAG}
+        namespace: ${NAMESPACE}
+    source:
+      type: Git
+      git:
+        ref: ${APPSRC_REPO_REF}
+        uri: ${APPSRC_REPO_URL}
+      sourceSecret:
+        name: ${APPSRC_REPO_AUTH}
+      secrets:
+        - secret:
+            name: ${CKAN_EXT_SECRET}
+          destinationDir: ""
+    strategy:
+      sourceStrategy:
+        env:
+          - name: CKAN_IS_EXTENSION
+            value: "true"
+          - name: CKAN_EXT_DIR
+            value: ckanext-civity
+        from:
+          kind: ImageStreamTag
+          name: ${BASEBUILDER_IMG_NAME}:${BASEBUILDER_IMG_TAG}
+          namespace: ${NAMESPACE}
+        incremental: true
+      type: Source
+    successfulBuildsHistoryLimit: 2
+    failedBuildsHistoryLimit: 5
+    triggers:
+    - type: ConfigChange

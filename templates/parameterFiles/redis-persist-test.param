@@ -1,0 +1,7 @@
+NAME=ckan
+NAMESPACE=ckan
+REDIS_IMAGE="centos/redis-32-centos7:3.2"
+REDIS_CONF_MAP=ckan-redis
+REDIS_STORAGE_SIZE=2Gi
+STORAGE_CLASS_NAME="standard"
+ENV_TZ=Europe/Amsterdam

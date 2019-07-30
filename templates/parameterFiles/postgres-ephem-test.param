@@ -1,0 +1,13 @@
+NAME=ckan
+NAMESPACE=ckan
+BASE_IMG_NAME="docker.io/crunchydata/crunchy-postgres-gis"
+BASE_IMG_TAG="centos7-9.6.12-2.3.1"
+BASEBUILDER_REPO_URL=
+BASEBUILDER_REPO_AUTH=image-builder-gitlab-auth
+BASEBUILDER_REPO_REF="development"
+BASEBUILDER_REPO_CONTEXT_DIR="builders/ckan/postgres-gis"
+PG_ENV=ckan-postgresql-env
+PG_AUTH=ckan-postgresql-auth
+PG_CONF_MAP=ckan-postgresql
+PG_PRIMARY_PORT='5432'
+ENV_TZ="Europe/Amsterdam"

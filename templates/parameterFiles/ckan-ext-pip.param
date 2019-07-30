@@ -1,0 +1,11 @@
+NAME=ckan
+NAMESPACE=ckan
+OUTPUT_IMG_NAME=ckan
+OUTPUT_IMG_TAG=pip-v1
+BASEBUILDER_IMG_NAME=ckan
+BASEBUILDER_IMG_TAG=ckan-2.8.2
+BASEBUILDER_REPO_URL=
+BASEBUILDER_REPO_AUTH=image-builder-gitlab-auth
+BASEBUILDER_REPO_REF="development"
+BASEBUILDER_REPO_CONTEXT_DIR="builders/ckan/ckan-ext"
+CKAN_EXT_LIST="ckanext-geoview ckanext-deadoralive ckanext-eurovoc"

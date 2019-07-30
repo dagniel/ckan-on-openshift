@@ -1,0 +1,10 @@
+NAME=ckan
+NAMESPACE=ckan
+OUTPUT_IMG_NAME=ckan
+OUTPUT_IMG_TAG=civity-dev
+APPSRC_REPO_URL=
+APPSRC_REPO_AUTH=image-builder-gitlab-auth
+APPSRC_REPO_REF="develop"
+BASEBUILDER_IMG_NAME=ckan
+BASEBUILDER_IMG_TAG=ckan-2.8.2
+CKAN_EXT_SECRET=ckan-ext-git

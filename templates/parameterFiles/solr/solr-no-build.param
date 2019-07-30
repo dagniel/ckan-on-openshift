@@ -1,0 +1,9 @@
+NAME=ckan
+NAMESPACE=pub-ckan
+RUNTIME_IMG_NAME="quay.io/dagniel/ckan.solr-on-openshift:6.6.5"
+SOLR_RAM_LIMIT="1Gi"
+SOLR_RAM_REQ="512Mi"
+SOLR_CPU_REQ="100m"
+SOLR_CPU_LIMIT="400m"
+ENV_TZ="Europe/Amsterdam"
+SOLR_CONF=solr-conf

@@ -1,0 +1,5 @@
+NAME=ckan
+NAMESPACE=ckan
+REDIS_IMAGE=centos/redis-32-centos7:3.2
+REDIS_CONF_MAP=ckan-redis
+ENV_TZ=Europe/Amsterdam

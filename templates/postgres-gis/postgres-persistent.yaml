@@ -1,0 +1,445 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-postgres-gis-persistent
+  annotations:
+    description: |-
+      Teplate for deploying the postgres with postgis component for ckan.
+      Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
+      Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
+
+      Template for components with persistent storage
+    iconClass: icon-postgresql
+    openshift.io/display-name: Ckan - Postgresql(persistent) component
+    tags: ckan,postgresql,crunchydata
+    template.openshift.io/long-description: >-
+      Teplate for deploying the postgres with postgis component for ckan.
+      Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
+      Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
+
+      Template for components with persistent storage
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: BASE_IMG_NAME
+    displayName: Base builder's source image
+    description: |-
+      Base builder's source image name used to create the app's specific builder
+      Must be in the form image:tag
+    value: "docker.io/crunchydata/crunchy-postgres-gis"
+  - name: BASE_IMG_TAG
+    displayName: Base builder's source image
+    description: |-
+      Base builder's source image name used to create the app's specific builder
+      Must be in the form image:tag
+    value: "centos7-9.6.12-2.3.1"
+  - name: BASEBUILDER_REPO_URL
+    displayName: Base builder repository URL
+    description: The URL of the repository with builder scripts specific for the app
+    value:
+    required: true
+  - name: BASEBUILDER_REPO_AUTH
+    displayName: Base builder Secret for repository authentication
+    description: The referenced OKD secret used to authenticaate to the specified repository
+    value: image-builder-gitlab-auth
+  - name: BASEBUILDER_REPO_REF
+    displayName: Base builder repository Reference
+    description: >-
+      Set this to a branch name, tag or other ref of your repository if you are
+      not using the default branch.
+    value: "development"
+  - name: BASEBUILDER_REPO_CONTEXT_DIR
+    displayName: Base builder repository Context Directory
+    description: >-
+      Set this to the relative path to your project if it is not in the root of
+      your repository.
+    value: "builders/ckan/postgres-gis"
+  - name: PG_ENV
+    displayName: Reference to Secret holding env vars
+    required: true
+    value: ckan-postgresql-env
+  - name: PG_AUTH
+    displayName: Reference to Secret holding authentication details
+    required: true
+    value: ckan-postgresql-auth
+  - name: PG_CONF_MAP
+    displayName: Reference to ConfigMap holding configuration files for DB init
+    required: true
+    value: ckan-postgresql
+  - name: PG_PRIMARY_PORT
+    displayName: Database port
+    value: '5432'
+  - name: PG_ROOT_PASSWORD
+    displayName: Password for user postgres(generated)
+    from: '[a-z0-9]{8}'
+    generate: expression
+    required: true
+  - name: PG_PRIMARY_PASSWORD
+    displayName: Password for replication user(generated)
+    from: '[a-z0-9]{8}'
+    generate: expression
+    required: true
+  - name: PG_PASSWORD
+    displayName: Password for datastore primary user
+    from: '[a-z0-9]{8}'
+    generate: expression
+    required: true
+  - name: DS_RO_PASS
+    displayName: Password for datastore read-only user
+    from: '[a-z0-9]{8}'
+    generate: expression
+    required: true
+  - name: POSTGRES_STORAGE_SIZE
+    displayName: Value for the Postgres storage
+    description: -|
+      Value for the PVC that will be created and attached as data storage for the Postgres-gis Pod
+      Should be in the form "xGi"; default 2Gi
+    value: "2Gi"
+  - name: STORAGE_CLASS_NAME
+    displayName: Name of storage-class
+    description: -|
+      Name of the StorageClass that will dynamically provide storage for the claim
+      In the case dynamic provisioning isn't available, should be the empty string ""
+    value: ""
+  - name: ENV_TZ
+    displayName: Environment for timezone
+    description: -|
+      OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
+      Useful for logging
+    value: "Europe/Amsterdam"
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ${NAME}-postgresql
+    namespace: ${NAMESPACE}
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+  data:
+#    pg_hba.conf: |
+#      host all  all    0.0.0.0/0  md5
+    setup.sql: |-
+      SET application_name="container_setup";
+
+      create extension postgis;
+      create extension postgis_topology;
+      create extension fuzzystrmatch;
+      create extension postgis_tiger_geocoder;
+      create extension pg_stat_statements;
+      create extension pgaudit;
+      create extension plr;
+
+      alter user postgres password 'PG_ROOT_PASSWORD';
+
+      create user PG_PRIMARY_USER with REPLICATION  PASSWORD 'PG_PRIMARY_PASSWORD';
+      create user PG_USER with password 'PG_PASSWORD';
+
+      create table primarytable (key varchar(20), value varchar(20));
+      grant all on primarytable to PG_PRIMARY_USER;
+
+      create database PG_DATABASE;
+
+      grant all privileges on database PG_DATABASE to PG_USER;
+
+      CREATE ROLE PG_DATASTORE_RO_USER NOSUPERUSER NOCREATEDB NOCREATEROLE LOGIN PASSWORD 'PG_DATASTORE_RO_PASS';
+      CREATE DATABASE PG_DATASTORE_DB OWNER PG_USER ENCODING 'utf-8';
+      GRANT ALL PRIVILEGES ON DATABASE PG_DATASTORE_DB TO PG_USER;
+
+      \c PG_DATABASE
+
+      create extension postgis;
+      create extension postgis_topology;
+      create extension fuzzystrmatch;
+      create extension postgis_tiger_geocoder;
+      create extension pg_stat_statements;
+      create extension pgaudit;
+      create extension plr;
+
+      \c PG_DATABASE PG_USER;
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+    name: ${NAME}-postgresql-env
+    namespace: ${NAMESPACE}
+  stringData:
+    PG_PRIMARY_PORT: '${PG_PRIMARY_PORT}'
+    PGHOST: '/tmp'
+    PG_MODE: primary
+    PG_DATABASE: ckan
+    PG_DATASTORE_DB: datastore
+    PG_LOCALE: en_US.utf8
+#    XLOGDIR: 'true'
+#    PGBACKREST: 'true'
+  type: Opaque
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+    name: ${NAME}-postgresql-auth
+    namespace: ${NAMESPACE}
+  stringData:
+    PG_PRIMARY_USER: replicator
+    PG_PRIMARY_PASSWORD: ${PG_PRIMARY_PASSWORD}
+    PG_USER: ckan
+    PG_PASSWORD: ${PG_PASSWORD}
+    PG_ROOT_PASSWORD: ${PG_ROOT_PASSWORD}
+    PG_DATASTORE_RO_USER: datastore_ro
+    PG_DATASTORE_RO_PASS: ${DS_RO_PASS}
+  type: Opaque
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      description: Image stream for custom postgres-gis
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+    name: ${NAME}-postgresql
+    namespace: ${NAMESPACE}
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: First layer build to obtain app's specific builder scripts
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+    name: ${NAME}-postgresql
+    namespace: ${NAMESPACE}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${NAME}-postgresql:${BASE_IMG_TAG}
+        namespace: ${NAMESPACE}
+    runPolicy: Serial
+    source:
+      type: Git
+      git:
+        ref: ${BASEBUILDER_REPO_REF}
+        uri: ${BASEBUILDER_REPO_URL}
+      contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
+      sourceSecret:
+        name: ${BASEBUILDER_REPO_AUTH}
+    strategy:
+      type: Docker
+      dockerStrategy:
+        env:
+          - name: CONTAINER_USER_NAME
+            value: postgres
+        from:
+          kind: DockerImage
+          name: ${BASE_IMG_NAME}:${BASE_IMG_TAG}
+    successfulBuildsHistoryLimit: 2
+    failedBuildsHistoryLimit: 5
+    triggers:
+#not linking the generic builder to the app's builder
+    - type: ConfigChange
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-postgresql
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+  spec:
+    ports:
+    - name: postgresql
+      protocol: TCP
+      port: 5432
+      targetPort: ${{PG_PRIMARY_PORT}}
+    selector:
+      deploymentconfig: ${NAME}-postgresql
+    type: ClusterIP
+    sessionAffinity: None
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+    name: ${NAME}-postgresql
+    namespace: ${NAMESPACE}
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 5
+    selector:
+      app: ${NAME}
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          deploymentconfig: ${NAME}-postgresql
+      spec:
+        containers:
+        - name: ${NAME}-postgresql
+          image: null
+          readinessProbe:
+            exec:
+              command:
+              - "/opt/cpm/bin/readiness.sh"
+            initialDelaySeconds: 40
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+              - "/opt/cpm/bin/liveness.sh"
+            initialDelaySeconds: 40
+            timeoutSeconds: 10
+          ports:
+          - containerPort: ${{PG_PRIMARY_PORT}}
+            protocol: TCP
+          env:
+            - name: TZ
+              value: ${ENV_TZ}
+            - name: PG_PRIMARY_USER
+              valueFrom:
+                secretKeyRef:
+                  key: PG_PRIMARY_USER
+                  name: ${PG_AUTH}
+            - name: PG_PRIMARY_PORT
+              valueFrom:
+                secretKeyRef:
+                  key: PG_PRIMARY_PORT
+                  name: ${PG_ENV}
+            - name: PGHOST
+              valueFrom:
+                secretKeyRef:
+                  key: PGHOST
+                  name: ${PG_ENV}
+            - name: PG_MODE
+              valueFrom:
+                secretKeyRef:
+                  key: PG_MODE
+                  name: ${PG_ENV}
+            - name: PG_PRIMARY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: PG_PRIMARY_PASSWORD
+                  name: ${PG_AUTH}
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  key: PG_USER
+                  name: ${PG_AUTH}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: PG_PASSWORD
+                  name: ${PG_AUTH}
+            - name: PG_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATABASE
+                  name: ${PG_ENV}
+            - name: PG_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: PG_ROOT_PASSWORD
+                  name: ${PG_AUTH}
+            - name: PG_DATASTORE_DB
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATASTORE_DB
+                  name: ${PG_ENV}
+            - name: PG_LOCALE
+              valueFrom:
+                secretKeyRef:
+                  key: PG_LOCALE
+                  name: ${PG_ENV}
+            - name: PG_DATASTORE_RO_USER
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATASTORE_RO_USER
+                  name: ${PG_AUTH}
+            - name: PG_DATASTORE_RO_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATASTORE_RO_PASS
+                  name: ${PG_AUTH}
+#            - name: XLOGDIR
+#              valueFrom:
+#                secretKeyRef:
+#                  key: XLOGDIR
+#                  name: ${PG_ENV}
+#            - name: PGBACKREST
+#              valueFrom:
+#                secretKeyRef:
+#                  key: PGBACKREST
+#                  name: ${PG_ENV}
+          volumeMounts:
+            - mountPath: "/pgdata"
+              name: pgdata
+              readOnly: false
+#            - mountPath: "/pgwal"
+#              name: pgwal
+#              readOnly: false
+#            - mountPath: "/backrestrepo"
+#              name: backrestrepo
+#             readOnly: false
+            - mountPath: "/pgconf"
+              name: pgconf
+              readOnly: true
+        volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: ${NAME}-postgresql-storage
+#        - name: pgwal
+#          persistentVolumeClaim:
+#            claimName: custom-config-pgwal
+#        - name: backrestrepo
+#          persistentVolumeClaim:
+#            claimName: custom-config-br
+        - name: pgconf
+          configMap:
+            name: ${PG_CONF_MAP}
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+#       securityContext: "'"supplementalGroups": [65534]'"
+        terminationGracePeriodSeconds: 30
+        automountServiceAccountToken: false
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${NAME}-postgresql
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}-postgresql:${BASE_IMG_TAG}
+          namespace: ${NAMESPACE}
+    strategy:
+      type: Recreate
+      resources: {}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      app: ${NAME}
+      ckan.component: postgresql
+    name: ${NAME}-postgresql-storage
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    dataSource: null
+    resources:
+      requests:
+        storage: ${POSTGRES_STORAGE_SIZE}
+    storageClassName: ${STORAGE_CLASS_NAME}

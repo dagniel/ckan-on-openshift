@@ -1,0 +1,15 @@
+NAME=ckan
+NAMESPACE=ckan
+APPLICATION_HOSTNAME='ckan.apps.oshift-pinfold.intra'
+BASEBUILDER_IMG_NAME="docker.io/centos/python-27-centos7"
+BASEBUILDER_REPO_URL=
+BASEBUILDER_REPO_AUTH=image-builder-gitlab-auth
+BASEBUILDER_REPO_REF="development"
+BASEBUILDER_REPO_CONTEXT_DIR="builders/ckan/ckan"
+APPSRC_REPO_URL=https://github.com/ckan/ckan.git
+APPSRC_REPO_REF="ckan-2.8.2"
+CKAN_ENV=ckan-env
+CKAN_CONF_MAP=ckan
+CKAN_PG_ENV=ckan-postgresql-env
+CKAN_PG_AUTH=ckan-postgresql-auth
+ENV_TZ=Europe/Amsterdam

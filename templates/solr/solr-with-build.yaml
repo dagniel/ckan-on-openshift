@@ -1,0 +1,380 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-solr
+  annotations:
+    description: |-
+      Teplate for deploying the Solr indexing compoent for ckan
+    iconClass: icon-java
+    openshift.io/display-name:  Ckan - Solr component
+    tags: ckan,solr
+    template.openshift.io/long-description: >-
+       Ckan - Solr component
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: RUNTIME_IMG_NAME
+    displayName: Source ImageStream name
+    description: |-
+      The existing OpenShift runtime imageStream used to deploy and run the app
+      Shold be of the form image:tag
+    required: true
+    value: "ckan-solr"
+  - name: VERSION
+    displayName: Version of the deployment
+    description: |-
+      Tag should mirror the source repository/version tag for ckan
+    required: true
+    value: ckan-2.8.2
+  - name: SOLR_RAM_LIMIT
+    displayName: Max ram allocatable for the solr container
+    description: |-
+      Option needed due to java1.8 limitation regarding container memory
+      More at: https://developers.redhat.com/blog/2017/04/04/openjdk-and-containers/
+    value: "1Gi"
+    required: true
+  - name: SOLR_RAM_REQ
+    displayName: Initial ram allocated for the solr container
+    value: "512Mi"
+  - name: SOLR_CPU_REQ
+    displayName: Initial CPU allocated for the solr container
+    value: "100m"
+  - name: SOLR_CPU_LIMIT
+    displayName: CPU limit for the solr container
+    value: "400m"
+  - name: SOURCE_REPO_URL
+    displayName: Base builder repository URL
+    description: The URL of the repository with builder scripts specific for the app
+    value: https://github.com/ckan/ckan.git
+    required: true
+  - name: SOURCE_REPO_CONTEXT_DIR
+    displayName: Base builder repository Context Directory
+    description: >-
+      Set this to the relative path to your project if it is not in the root of
+      your repository.
+    value: "contrib/docker/solr"
+  - name: SOURCE_IMG_NAME
+    displayName: Base builder's source image
+    description: |-
+      Base builder's source image name used to create the app's specific builder
+      Must be in the form image:tag
+    value: "solr:6.6.5"
+    required: true
+  - name: BASEBUILDER_REPO_URL
+    displayName: Base builder repository URL
+    description: The URL of the repository with builder scripts specific for the app
+    value: git@gitlab.onetrail.net:Onetrail/Pinfold/Openshift/imageBuilder.git
+    required: true
+  - name: BASEBUILDER_REPO_AUTH
+    displayName: Base builder Secret for repository authentication
+    description: The referenced OKD secret used to authenticaate to the specified repository
+    value: image-builder-gitlab-auth
+  - name: BASEBUILDER_REPO_REF
+    displayName: Base builder repository Reference
+    description: >-
+      Set this to a branch name, tag or other ref of your repository if you are
+      not using the default branch.
+    value: "development"
+  - name: BASEBUILDER_REPO_CONTEXT_DIR
+    displayName: Base builder repository Context Directory
+    description: >-
+      Set this to the relative path to your project if it is not in the root of
+      your repository.
+    value: "builders/ckan/solr"
+  - name: ENV_TZ
+    displayName: Environment for timezone
+    description: -|
+      OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
+      Useful for logging
+    value: "Europe/Amsterdam"
+  - name: SOLR_CONF
+    displayName: Reference to ConfigMap
+    description: COnfigMap that holds config and init files used at runtime.
+    required: true
+    value: solr-conf
+objects:
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      annotations:
+        description: First layer build to obtain solr image specific to ckan
+      labels:
+        app: ${NAME}
+        ckan.component: solr-base
+      name: ${NAME}-solr-base
+      namespace: ${NAMESPACE}
+    spec:
+      output:
+        to:
+          kind: ImageStreamTag
+          name: ${RUNTIME_IMG_NAME}-base:${VERSION}
+          namespace: ${NAMESPACE}
+      runPolicy: Serial
+      source:
+        type: Git
+        git:
+          ref: ${VERSION}
+          uri: ${SOURCE_REPO_URL}
+      strategy:
+        type: Docker
+        dockerStrategy:
+          dockerfilePath: ${SOURCE_REPO_CONTEXT_DIR}/Dockerfile
+          from:
+            kind: DockerImage
+            name: docker.io/${SOURCE_IMG_NAME}
+      successfulBuildsHistoryLimit: 2
+      failedBuildsHistoryLimit: 5
+      triggers:
+#not linking the generic builder to the app's builder
+      - type: ConfigChange
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      annotations:
+        description: Second layer build to modify permissions in order to suit OKD requirements
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: ${NAME}-solr
+      namespace: ${NAMESPACE}
+    spec:
+      output:
+        to:
+          kind: ImageStreamTag
+          name: ${RUNTIME_IMG_NAME}:${VERSION}
+          namespace: ${NAMESPACE}
+      runPolicy: Serial
+      source:
+        type: Git
+        git:
+          ref: ${BASEBUILDER_REPO_REF}
+          uri: ${BASEBUILDER_REPO_URL}
+        contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
+        sourceSecret:
+          name: ${BASEBUILDER_REPO_AUTH}
+      strategy:
+        dockerStrategy:
+          from:
+            kind: ImageStreamTag
+            name: ${RUNTIME_IMG_NAME}-base:${VERSION}
+            namespace: ${NAMESPACE}
+      successfulBuildsHistoryLimit: 2
+      failedBuildsHistoryLimit: 5
+      triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChange: {}
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      annotations:
+        description: Keeps track of changes in the final/OKD specific image
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: ${RUNTIME_IMG_NAME}
+      namespace: ${NAMESPACE}
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      annotations:
+        description: Keeps track of changes in the base application image
+      labels:
+        app: ${NAME}
+        ckan.component: solr-base
+      name: ${RUNTIME_IMG_NAME}-base
+      namespace: ${NAMESPACE}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        description: Exposes and load balances the application pods
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: ${NAME}-solr
+      namespace: ${NAMESPACE}
+    spec:
+      ports:
+      - name: solr
+        port: 8983
+        protocol: TCP
+        targetPort: 8983
+      selector:
+        deploymentconfig: ${NAME}-solr
+      type: ClusterIP
+  - apiVersion: v1
+    kind: DeploymentConfig
+    metadata:
+      annotations:
+        description: Defines how to deploy the application server
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: ${NAME}-solr
+      namespace: ${NAMESPACE}
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 5
+      selector:
+        app: ${NAME}
+      template:
+        metadata:
+          labels:
+            app: ${NAME}
+            deploymentconfig: ${NAME}-solr
+        spec:
+          containers:
+          - image: null
+            imagePullPolicy: Always
+            name: ${NAME}-solr
+            ports:
+            - containerPort: 8983
+              protocol: TCP
+            env:
+              - name: TZ
+                value: ${ENV_TZ}
+              - name: SOLR_RAM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.memory
+            livenessProbe:
+              httpGet:
+                path: /
+                port: 8983
+              initialDelaySeconds: 30
+              timeoutSeconds: 10
+            readinessProbe:
+              httpGet:
+                path: /
+                port: 8983
+              initialDelaySeconds: 30
+              timeoutSeconds: 3
+            resources:
+              limits:
+                cpu: ${SOLR_CPU_LIMIT}
+                memory: ${SOLR_RAM_LIMIT}
+              requests:
+                cpu: ${SOLR_CPU_REQ}
+                memory: ${SOLR_RAM_REQ}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /opt/config
+                name: solr-config
+              - mountPath: /docker-entrypoint-initdb.d
+                name: solr-init
+          volumes:
+          - name: solr-config
+            configMap:
+              defaultMode: 0440
+              optional: true
+              name: ${SOLR_CONF}
+          - name: solr-init
+            configMap:
+              defaultMode: 0770
+              optional: true
+              name: ${SOLR_CONF}
+              items:
+              - key: ckan-solr-init.sh
+                path: ckan-solr-init.sh
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+          automountServiceAccountToken: false
+      triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+          - ${NAME}-solr
+          from:
+            kind: ImageStreamTag
+            name: ${RUNTIME_IMG_NAME}:${VERSION}
+            namespace: ${NAMESPACE}
+      strategy:
+        type: Rolling
+        activeDeadlineSeconds: 21600
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          maxSurge: 25%
+          maxUnavailable: 0
+          timeoutSeconds: 180
+          updatePeriodSeconds: 1
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      annotations:
+        description: |-
+          Holds configuration and initialization files used to deploy Solr.
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: solr-conf
+      namespace: ${NAMESPACE}
+    data:
+      ckan-solr-init.sh: |-
+        #!/bin/bash
+
+        # if there is a solr.in.sh file mounted in the /opt/config directory use this for starting Solr
+        if [ -s "/opt/config/solr.in.sh" ]; then
+          echo "---> Found user supplied solr.in.sh; Using it to start Solr"
+          rm -f /opt/solr/bin/solr.in.sh
+          cp /opt/config/solr.in.sh /opt/solr/bin/solr.in.sh
+        fi
+
+
+        #need to specify additional JAVA_OPTS to make Java respect container limits
+        #https://docs.okd.io/3.10/dev_guide/application_memory_sizing.html#sizing-openjdk
+        #if java major version is lower than 10, should add the -XX:MaxRAM option
+        java -version > /tmp/jvers 2>&1
+        jvers=$(cat /tmp/jvers | head -1 | cut -d ' ' -f3 | sed 's/\"\([0-9]*\).*/\1/')
+        rm -f /tmp/jvers
+
+        if [ 10 -gt $jvers ]; then
+            if [ -z "$SOLR_RAM_LIMIT" ]; then
+              SOLR_RAM_LIMIT="512Mi"
+              echo "---> using default SOLR_RAM_LIMIT as: $SOLR_RAM_LIMIT"
+            fi
+            #when env variable comes linked to OKD mem limit notation,eg 512M or 512 Mi,
+            #should change it to java size equivalent notation
+            value=$(echo "$SOLR_RAM_LIMIT" | sed 's/\([0-9]*\)[a-zA-Z]*/\1/')
+            suffix=$(echo "$SOLR_RAM_LIMIT" | sed 's/\([0-9]*\)\([a-zA-Z]*\)/\2/')
+
+            #the case where there's no scale (Mi, GI, etc) then the value is in bytes
+            if [ "x"$suffix = "x" ]; then
+                SOLR_RAM_LIMIT=$(awk "BEGIN {print $value/1024/1024}")"m"
+            # if suffix has len=1 => OKD decimal scale; approximate only the top factor
+            elif [ ${#suffix} -eq 1 ]; then
+                SOLR_RAM_LIMIT=$(awk "BEGIN {print $value/1024*1000}")"${suffix:0:1}"
+            # if suffix has len>1 => OKD binary scale
+            else
+                SOLR_RAM_LIMIT=$value"${suffix:0:1}"
+            fi
+
+            echo "---> adding -XX:MaxRAM=$SOLR_RAM_LIMIT option for java version < 10"
+            # if there is an active SOLR_OPTS variable, just append the MaxRam arg
+            # otherwise(default) also add tuning for JVM memory release
+            active_opts=$(sed -n "s/^SOLR_OPTS=\(.*\)\"/\1/p" /opt/solr/bin/solr.in.sh)
+            if [ ${#active_opts} -eq 0 ]; then
+                echo "SOLR_OPTS=\"$SOLR_OPTS -XX:MaxRAM=$SOLR_RAM_LIMIT -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 -XX:GCTimeRatio=4 -XX:+UseParallelGC -XX:AdaptiveSizePolicyWeight=90\"" \
+                >> /opt/solr/bin/solr.in.sh
+            else
+                # for convenience modifies all the occurences
+                sed -i "s/^\(#*\)\(SOLR_OPTS=\)\(.*\)\"/\1\2\3 -XX:MaxRAM=$SOLR_RAM_LIMIT\"/" /opt/solr/bin/solr.in.sh
+            fi
+            active_opts=$(sed -n "s/^SOLR_OPTS=\(.*\)\"/\1/p" /opt/solr/bin/solr.in.sh)
+          echo "---> active SOLR_OPTS: $active_opts"
+        fi
