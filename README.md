@@ -1,6 +1,7 @@
 # ckan-on-openshift
 CKAN deployment configuration for Openshift
-<<<<<<< HEAD
+
+
 =======
 
 # TODOs
@@ -9,4 +10,4 @@ CKAN deployment configuration for Openshift
 - refactor builder dir structure for postgres-gis
 - mention: all current config for custom builds is done based on publicly acessibly repos; for private repos the BuildConfigs must be customized
 - mention: for postgres users and passwords are generated from template's params by using expressions
->>>>>>> dcbf9c2... refactor for public work
+
