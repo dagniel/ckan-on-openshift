@@ -1,11 +1,12 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: ckan-solr
+  name: ckan-solr-with-build
   annotations:
     description: |-
-      Teplate for deploying the Solr indexing compoent for ckan
-    iconClass: icon-java
+      Teplate for deploying the Solr indexing component for ckan
+      With objects to locally build and store needed images.
+    iconClass: icon-openjdk
     openshift.io/display-name:  Ckan - Solr component
     tags: ckan,solr
     template.openshift.io/long-description: >-
@@ -24,7 +25,7 @@ parameters:
   - name: RUNTIME_IMG_NAME
     displayName: Source ImageStream name
     description: |-
-      The existing OpenShift runtime imageStream used to deploy and run the app
+      The existing OpenShift runtime image used to deploy and run the app
       Shold be of the form image:tag
     required: true
     value: "ckan-solr"
@@ -71,27 +72,27 @@ parameters:
   - name: BASEBUILDER_REPO_URL
     displayName: Base builder repository URL
     description: The URL of the repository with builder scripts specific for the app
-    value: git@gitlab.onetrail.net:Onetrail/Pinfold/Openshift/imageBuilder.git
+    value: https://github.com/dagniel/ckan-on-openshift.git
     required: true
-  - name: BASEBUILDER_REPO_AUTH
-    displayName: Base builder Secret for repository authentication
-    description: The referenced OKD secret used to authenticaate to the specified repository
-    value: image-builder-gitlab-auth
+#  - name: BASEBUILDER_REPO_AUTH
+#    displayName: Base builder Secret for repository authentication
+#    description: The referenced OKD secret used to authenticaate to the specified repository
+#    value: image-builder-gitlab-auth
   - name: BASEBUILDER_REPO_REF
     displayName: Base builder repository Reference
     description: >-
       Set this to a branch name, tag or other ref of your repository if you are
       not using the default branch.
-    value: "development"
+    value: "master"
   - name: BASEBUILDER_REPO_CONTEXT_DIR
     displayName: Base builder repository Context Directory
     description: >-
       Set this to the relative path to your project if it is not in the root of
       your repository.
-    value: "builders/ckan/solr"
+    value: "docker/solr"
   - name: ENV_TZ
     displayName: Environment for timezone
-    description: -|
+    description: |-
       OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
       Useful for logging
     value: "Europe/Amsterdam"
@@ -115,7 +116,7 @@ objects:
       output:
         to:
           kind: ImageStreamTag
-          name: ${RUNTIME_IMG_NAME}-base:${VERSION}
+          name: ${RUNTIME_IMG_NAME}:base-${VERSION}
           namespace: ${NAMESPACE}
       runPolicy: Serial
       source:
@@ -158,13 +159,14 @@ objects:
           ref: ${BASEBUILDER_REPO_REF}
           uri: ${BASEBUILDER_REPO_URL}
         contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
-        sourceSecret:
-          name: ${BASEBUILDER_REPO_AUTH}
+# used with a private repo
+#        sourceSecret:
+#          name: ${BASEBUILDER_REPO_AUTH}
       strategy:
         dockerStrategy:
           from:
             kind: ImageStreamTag
-            name: ${RUNTIME_IMG_NAME}-base:${VERSION}
+            name: ${RUNTIME_IMG_NAME}:base-${VERSION}
             namespace: ${NAMESPACE}
       successfulBuildsHistoryLimit: 2
       failedBuildsHistoryLimit: 5
@@ -181,16 +183,6 @@ objects:
         app: ${NAME}
         ckan.component: solr
       name: ${RUNTIME_IMG_NAME}
-      namespace: ${NAMESPACE}
-  - apiVersion: v1
-    kind: ImageStream
-    metadata:
-      annotations:
-        description: Keeps track of changes in the base application image
-      labels:
-        app: ${NAME}
-        ckan.component: solr-base
-      name: ${RUNTIME_IMG_NAME}-base
       namespace: ${NAMESPACE}
   - apiVersion: v1
     kind: Service
@@ -270,14 +262,19 @@ objects:
             volumeMounts:
               - mountPath: /opt/config
                 name: solr-config
+# in order to use same ConfigMap for both the initialization script and for the optional startup configuration
+# need to define a second mount point(the same ConfigMap is mounted twice)
               - mountPath: /docker-entrypoint-initdb.d
                 name: solr-init
           volumes:
+# the volume holds the ckan-solr-init.sh script even though it's not used in here
           - name: solr-config
             configMap:
-              defaultMode: 0440
+              defaultMode: 0660
               optional: true
               name: ${SOLR_CONF}
+# the volume only holds  the ckan-solr-init.sh script and not the optional startup config
+#  in order to to avoid problematic script executions
           - name: solr-init
             configMap:
               defaultMode: 0770
@@ -369,7 +366,8 @@ objects:
             # otherwise(default) also add tuning for JVM memory release
             active_opts=$(sed -n "s/^SOLR_OPTS=\(.*\)\"/\1/p" /opt/solr/bin/solr.in.sh)
             if [ ${#active_opts} -eq 0 ]; then
-                echo "SOLR_OPTS=\"$SOLR_OPTS -XX:MaxRAM=$SOLR_RAM_LIMIT -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 -XX:GCTimeRatio=4 -XX:+UseParallelGC -XX:AdaptiveSizePolicyWeight=90\"" \
+                echo >> /opt/solr/bin/solr.in.sh
+                echo "SOLR_OPTS=\"$SOLR_OPTS -XX:MaxRAM=$SOLR_RAM_LIMIT -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90\"" \
                 >> /opt/solr/bin/solr.in.sh
             else
                 # for convenience modifies all the occurences

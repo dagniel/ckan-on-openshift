@@ -1,5 +1,9 @@
 NAME=ckan
-NAMESPACE=ckan
-REDIS_IMAGE=centos/redis-32-centos7:3.2
+NAMESPACE=pub-ckan
+RUNTIME_IMG_NAME=centos/redis-32-centos7:3.2
 REDIS_CONF_MAP=ckan-redis
 ENV_TZ=Europe/Amsterdam
+REDIS_RAM_LIMIT="1Gi"
+REDIS_RAM_REQ="256Mi"
+REDIS_CPU_LIMIT="400m"
+REDIS_CPU_REQ="100m"

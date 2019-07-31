@@ -4,9 +4,9 @@ metadata:
   name: ckan-solr-no-build
   annotations:
     description: |-
-      Teplate for deploying the Solr indexing compoent for ckan
+      Teplate for deploying the Solr indexing component for ckan
       Without custom build of image.
-    iconClass: icon-java
+    iconClass: icon-openjdk
     openshift.io/display-name:  Ckan - Solr component
     tags: ckan,solr
     template.openshift.io/long-description: >-
@@ -47,7 +47,7 @@ parameters:
     value: "400m"
   - name: ENV_TZ
     displayName: Environment for timezone
-    description: -|
+    description: |-
       OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
       Useful for logging
     value: "Europe/Amsterdam"
@@ -135,14 +135,19 @@ objects:
             volumeMounts:
               - mountPath: /opt/config
                 name: solr-config
+# in order to use same ConfigMap for both the initialization script and for the optional startup configuration
+# need to define a second mount point(the same ConfigMap is mounted twice)
               - mountPath: /docker-entrypoint-initdb.d
                 name: solr-init
           volumes:
+# the volume holds the ckan-solr-init.sh script even though it's not used in here
           - name: solr-config
             configMap:
-              defaultMode: 0440
+              defaultMode: 0660
               optional: true
               name: ${SOLR_CONF}
+# the volume only holds  the ckan-solr-init.sh script and not the optional startup config
+#  in order to to avoid problematic script executions
           - name: solr-init
             configMap:
               defaultMode: 0770
@@ -225,7 +230,8 @@ objects:
             # otherwise(default) also add tuning for JVM memory release
             active_opts=$(sed -n "s/^SOLR_OPTS=\(.*\)\"/\1/p" /opt/solr/bin/solr.in.sh)
             if [ ${#active_opts} -eq 0 ]; then
-                echo "SOLR_OPTS=\"$SOLR_OPTS -XX:MaxRAM=$SOLR_RAM_LIMIT -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 -XX:GCTimeRatio=4 -XX:+UseParallelGC -XX:AdaptiveSizePolicyWeight=90\"" \
+                echo >> /opt/solr/bin/solr.in.sh
+                echo "SOLR_OPTS=\"$SOLR_OPTS -XX:MaxRAM=$SOLR_RAM_LIMIT -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90\"" \
                 >> /opt/solr/bin/solr.in.sh
             else
                 # for convenience modifies all the occurences

@@ -4,8 +4,7 @@ metadata:
   name: ckan-redis-ephemeral
   annotations:
     description: |-
-      Teplate for deploying the Redis DB component for ckan
-      Template for components without storage(ephemeral)
+      Template for deploying the Redis DB component with ephemeral storage for ckan
     iconClass: icon-redis
     openshift.io/display-name: Ckan - Redis(ephemeral) component
     tags: ckan,redis
@@ -22,20 +21,36 @@ parameters:
     description: The OpenShift Namespace where the resources will be created.
     value: ckan
     required: true
-  - name: REDIS_IMAGE
+  - name: RUNTIME_IMG_NAME
     description: Redis image to use
     required: true
     value: "centos/redis-32-centos7:3.2"
   - name: REDIS_CONF_MAP
     value: redis-config
-    description: "Reference to ConfigMap holding Redis properties"
+    description: Reference to ConfigMap holding Redis properties
     required: true
   - name: ENV_TZ
     displayName: Environment for timezone
-    description: -|
+    description: |-
       OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
       Useful for logging
     value: "Europe/Amsterdam"
+  - name: REDIS_RAM_LIMIT
+    displayName: Max ram allocatable for the REDIS container
+    description: |-
+      Option needed due to java1.8 limitation regarding container memory
+      More at: https://developers.redhat.com/blog/2017/04/04/openjdk-and-containers/
+    value: "1Gi"
+    required: true
+  - name: REDIS_RAM_REQ
+    displayName: Initial ram allocated for the REDIS container
+    value: "256Mi"
+  - name: REDIS_CPU_REQ
+    displayName: Initial CPU allocated for the REDIS container
+    value: "100m"
+  - name: REDIS_CPU_LIMIT
+    displayName: CPU limit for the REDIS container
+    value: "400m"
 objects:
 - apiVersion: apps.openshift.io/v1
   kind: DeploymentConfig
@@ -61,23 +76,23 @@ objects:
           deploymentconfig: ${NAME}-redis
       spec:
         containers:
-        - args:
+        - name: ${NAME}-redis
+          args:
           - /etc/redis.d/redis.conf
           - --daemonize
           - "no"
           command:
           - /opt/rh/rh-redis32/root/usr/bin/redis-server
-          image: ${REDIS_IMAGE}
+          image: ${RUNTIME_IMG_NAME}
           imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: ${ENV_TZ}
           livenessProbe:
             initialDelaySeconds: 10
             periodSeconds: 5
             tcpSocket:
               port: 6379
-          name: ${NAME}-redis
-          env:
-            - name: TZ
-              value: ${ENV_TZ}
           readinessProbe:
             exec:
               command:
@@ -90,11 +105,11 @@ objects:
             timeoutSeconds: 5
           resources:
             limits:
-              cpu: 500m
-              memory: 1Gi
+              cpu: "${REDIS_CPU_LIMIT}"
+              memory: "${REDIS_RAM_LIMIT}"
             requests:
-              cpu: 150m
-              memory: 256Mi
+              cpu: "${REDIS_CPU_REQ}"
+              memory: "${REDIS_RAM_REQ}"
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /var/lib/redis/data
@@ -104,8 +119,6 @@ objects:
         volumes:
         - name: redis-storage
           emptyDir: {}
-#          persistentVolumeClaim:
-#            claimName: system-redis-storage
         - configMap:
             items:
             - key: redis.conf
