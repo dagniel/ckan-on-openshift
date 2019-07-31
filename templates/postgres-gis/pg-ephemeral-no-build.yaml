@@ -9,6 +9,10 @@ metadata:
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
       Template for components without persistent storage(ephemeral)
+
+      The Parameters PG_ROOT_PASSWORD PG_PRIMARY_PASSWORD PG_PASSWORD DS_RO_PASS are used for convenience to generate
+      values at random at the initial deployment. They are kept in subsequent Openshift objects (Secrets, ConfigMaps)
+      and are referenced by different application components. So if they are changed/replaced a manual refactoring should be done.
     iconClass: icon-postgresql
     openshift.io/display-name: Ckan - Postgresql(ephemeral) component
     tags: ckan,postgresql,crunchydata
@@ -18,6 +22,10 @@ metadata:
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
       Template for components without persistent storage(ephemeral)
+
+      The Parameters PG_ROOT_PASSWORD PG_PRIMARY_PASSWORD PG_PASSWORD DS_RO_PASS are used for convenience to generate
+      values at random at the initial deployment. They are kept in subsequent Openshift objects (Secrets, ConfigMaps)
+      and are referenced by different application components. So if they are changed/replaced a manual refactoring should be done.
 parameters:
   - name: NAME
     displayName: Application name
@@ -29,39 +37,13 @@ parameters:
     description: The OpenShift Namespace where the resources will be created.
     value: ckan
     required: true
-  - name: BASE_IMG_NAME
-    displayName: Base builder's source image
+  - name: RUNTIME_IMG_NAME
+    displayName: Source ImageStream name
     description: |-
-      Base builder's source image name used to create the app's specific builder
-      Must be in the form image:tag
-    value: "docker.io/crunchydata/crunchy-postgres-gis"
-  - name: BASE_IMG_TAG
-    displayName: Base builder's source image
-    description: |-
-      Base builder's source image name used to create the app's specific builder
-      Must be in the form image:tag
-    value: "centos7-9.6.12-2.3.1"
-  - name: BASEBUILDER_REPO_URL
-    displayName: Base builder repository URL
-    description: The URL of the repository with builder scripts specific for the app
-    value:
+      The existing OpenShift runtime image used to deploy and run the app
+      Shold be of the form image:tag
     required: true
-  - name: BASEBUILDER_REPO_AUTH
-    displayName: Base builder Secret for repository authentication
-    description: The referenced OKD secret used to authenticaate to the specified repository
-    value: image-builder-gitlab-auth
-  - name: BASEBUILDER_REPO_REF
-    displayName: Base builder repository Reference
-    description: >-
-      Set this to a branch name, tag or other ref of your repository if you are
-      not using the default branch.
-    value: "development"
-  - name: BASEBUILDER_REPO_CONTEXT_DIR
-    displayName: Base builder repository Context Directory
-    description: >-
-      Set this to the relative path to your project if it is not in the root of
-      your repository.
-    value: "builders/ckan/postgres-gis"
+    value: "quay.io/dagniel/ckan.postgres-gis-on-openshift:9.6.12-2.3.1"
   - name: PG_ENV
     displayName: Reference to Secret holding env vars
     required: true
@@ -168,8 +150,6 @@ objects:
     PG_DATABASE: ckan
     PG_DATASTORE_DB: datastore
     PG_LOCALE: en_US.utf8
-#    XLOGDIR: 'true'
-#    PGBACKREST: 'true'
   type: Opaque
 - apiVersion: v1
   kind: Secret
@@ -226,7 +206,7 @@ objects:
       spec:
         containers:
         - name: ${NAME}-postgresql
-          image: null
+          image: "${RUNTIME_IMG_NAME}"
           readinessProbe:
             exec:
               command:
@@ -331,22 +311,6 @@ objects:
         automountServiceAccountToken: false
     triggers:
     - type: ConfigChange
-    - type: ImageChange
-      imageChangeParams:
-        automatic: true
-        containerNames:
-        - ${NAME}-postgresql
-        from:
-          kind: ImageStreamTag
-          name: ${NAME}-postgresql:${BASE_IMG_TAG}
-          namespace: ${NAMESPACE}
     strategy:
-      type: Rolling
-      activeDeadlineSeconds: 21600
+      type: Recreate
       resources: {}
-      rollingParams:
-        intervalSeconds: 1
-        maxSurge: 25%
-        maxUnavailable: 0
-        timeoutSeconds: 180
-        updatePeriodSeconds: 1

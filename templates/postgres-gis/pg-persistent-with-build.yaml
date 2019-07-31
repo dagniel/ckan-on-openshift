@@ -4,20 +4,28 @@ metadata:
   name: ckan-postgres-gis-persistent
   annotations:
     description: |-
-      Teplate for deploying the postgres with postgis component for ckan.
+      Template for deploying the postgres with postgis component for ckan.
       Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
       Template for components with persistent storage
+
+      The Parameters PG_ROOT_PASSWORD PG_PRIMARY_PASSWORD PG_PASSWORD DS_RO_PASS are used for convenience to generate
+      values at random at the initial deployment. They are kept in subsequent Openshift objects (Secrets, ConfigMaps)
+      and are referenced by different application components. So if they are changed/replaced a manual refactoring should be done.
     iconClass: icon-postgresql
     openshift.io/display-name: Ckan - Postgresql(persistent) component
     tags: ckan,postgresql,crunchydata
     template.openshift.io/long-description: >-
-      Teplate for deploying the postgres with postgis component for ckan.
+      Template for deploying the postgres with postgis component for ckan.
       Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
       Template for components with persistent storage
+
+      The Parameters PG_ROOT_PASSWORD PG_PRIMARY_PASSWORD PG_PASSWORD DS_RO_PASS are used for convenience to generate
+      values at random at the initial deployment. They are kept in subsequent Openshift objects (Secrets, ConfigMaps)
+      and are referenced by different application components. So if they are changed/replaced a manual refactoring should be done.
 parameters:
   - name: NAME
     displayName: Application name
@@ -40,16 +48,16 @@ parameters:
     description: |-
       Base builder's source image name used to create the app's specific builder
       Must be in the form image:tag
-    value: "centos7-9.6.12-2.3.1"
+    value: "centos7-9.6.14-2.4.1"
   - name: BASEBUILDER_REPO_URL
     displayName: Base builder repository URL
     description: The URL of the repository with builder scripts specific for the app
     value:
     required: true
-  - name: BASEBUILDER_REPO_AUTH
-    displayName: Base builder Secret for repository authentication
-    description: The referenced OKD secret used to authenticaate to the specified repository
-    value: image-builder-gitlab-auth
+#  - name: BASEBUILDER_REPO_AUTH
+#    displayName: Base builder Secret for repository authentication
+#    description: The referenced OKD secret used to authenticaate to the specified repository
+#    value: image-builder-gitlab-auth
   - name: BASEBUILDER_REPO_REF
     displayName: Base builder repository Reference
     description: >-
@@ -180,8 +188,6 @@ objects:
     PG_DATABASE: ckan
     PG_DATASTORE_DB: datastore
     PG_LOCALE: en_US.utf8
-#    XLOGDIR: 'true'
-#    PGBACKREST: 'true'
   type: Opaque
 - apiVersion: v1
   kind: Secret
@@ -233,8 +239,8 @@ objects:
         ref: ${BASEBUILDER_REPO_REF}
         uri: ${BASEBUILDER_REPO_URL}
       contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
-      sourceSecret:
-        name: ${BASEBUILDER_REPO_AUTH}
+#      sourceSecret:
+#        name: ${BASEBUILDER_REPO_AUTH}
     strategy:
       type: Docker
       dockerStrategy:
@@ -247,7 +253,6 @@ objects:
     successfulBuildsHistoryLimit: 2
     failedBuildsHistoryLimit: 5
     triggers:
-#not linking the generic builder to the app's builder
     - type: ConfigChange
 - kind: Service
   apiVersion: v1
@@ -371,26 +376,10 @@ objects:
                 secretKeyRef:
                   key: PG_DATASTORE_RO_PASS
                   name: ${PG_AUTH}
-#            - name: XLOGDIR
-#              valueFrom:
-#                secretKeyRef:
-#                  key: XLOGDIR
-#                  name: ${PG_ENV}
-#            - name: PGBACKREST
-#              valueFrom:
-#                secretKeyRef:
-#                  key: PGBACKREST
-#                  name: ${PG_ENV}
           volumeMounts:
             - mountPath: "/pgdata"
               name: pgdata
               readOnly: false
-#            - mountPath: "/pgwal"
-#              name: pgwal
-#              readOnly: false
-#            - mountPath: "/backrestrepo"
-#              name: backrestrepo
-#             readOnly: false
             - mountPath: "/pgconf"
               name: pgconf
               readOnly: true
@@ -398,20 +387,16 @@ objects:
         - name: pgdata
           persistentVolumeClaim:
             claimName: ${NAME}-postgresql-storage
-#        - name: pgwal
-#          persistentVolumeClaim:
-#            claimName: custom-config-pgwal
-#        - name: backrestrepo
-#          persistentVolumeClaim:
-#            claimName: custom-config-br
         - name: pgconf
           configMap:
             name: ${PG_CONF_MAP}
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
-        securityContext: {}
-#       securityContext: "'"supplementalGroups": [65534]'"
+#        securityContext: {}
+# used for NFS backed persistence
+        securityContext:
+          supplementalGroups: [65534]
         terminationGracePeriodSeconds: 30
         automountServiceAccountToken: false
     triggers:

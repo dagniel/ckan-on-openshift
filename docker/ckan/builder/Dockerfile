@@ -1,4 +1,4 @@
-FROM centos/python-27-centos7
+FROM docker.io/centos/python-27-centos7
 
 LABEL io.k8s.display-name="Custom CKAN main container build for OKD" \
 	io.k8s.description="Custom build for CKAN main container based on https://github.com/ckan/ckan.git based on official python-2.7 image" \
@@ -6,6 +6,8 @@ LABEL io.k8s.display-name="Custom CKAN main container build for OKD" \
   io.openshift.tags="ckan,python-2.7" \
   maintainer="dan.punga@gmail.com" \
   description="Custom build for CKAN main container based on https://github.com/ckan/ckan.git based on official python-2.7 image"
+
+ENV PGSQL_SCL="rh-postgresql96"
 
 USER 0
 

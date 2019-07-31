@@ -7,18 +7,18 @@
 # Initializes the CKAN container via a Kubernetes/Openshift  init container
 # by setting up the configuration .ini files for CKAN
 #
-# If a "who.ini" file is supplied in the $CKAN_CONF_TEMPLATES location, via a ConfMap,
+# If a "who.ini" file is supplied in the $CKAN_CONF_TEMPLATES location, via a ConfigMap,
 # it will be copied to the $CKAN_CONFIG location and used. Otherwise the default file
 # under $APP_ROOT/src/ckan/ckan/config/who.ini will be used
 #
-# If the deployment uses a "ckan.ini" template file which contain configuration with bash-like variables,
+# If the deployment uses a "ckan.ini" template file which contains configuration with bash-like variables,
 # the script processes the template found at $CKAN_CONF_TEMPLATES/ckan.ini
 # based on environment variables.
 # If the deployment uses an already configured ckan.ini file, it will be copied and used as is.
 #
 # The means of choosing between the 2 deployment version is by supplying the environment variable
 # CKAN_USE_CONF_TEMPLATE. If set to "true" it will search for a template named ckan.ini
-# in the $CKAN_CONF_TEMPLATES location(the mount point of the ConfMap), process it and copy
+# in the $CKAN_CONF_TEMPLATES location(the mount point of the ConfigMap), process it and copy
 # the useable file in the $CKAN_CONFIG location. IF set to another value("false"), it will
 # copy the unprocessed .ini file in the $CKAN_CONFIG location to be used by the ckan process as is.
 ################################################################################################################
@@ -43,7 +43,7 @@ else
 fi
 cp -f "$who_file" "$CKAN_CONFIG/who.ini"
 
-# copy ConfMap file to the CKAN_CONFIG editable location
+# copy ConfigMap file to the CKAN_CONFIG editable location
 cp -f "$CKAN_CONF_TEMPLATES/ckan.ini" "$CKAN_CONFIG/ckan.ini"
 CONFIG="$CKAN_CONFIG/ckan.ini"
 
@@ -101,7 +101,7 @@ do
 	fi
 	val=$(eval echo "\$$var")
 	# if $var is not present in the config file, it will just be skipped/not replaced
-	# problem with confounding varaibles(from upstream docker layers)....CKAN env vars need to have unique name/naming convention
+	# problem with confounding variables(from upstream docker layers)....CKAN env vars need to have unique name/naming convention
 	# use sed separator as | because values can be URLs which contain /
 	sed -i "s|\$$var|$val|g" "$CONFIG"
 done

@@ -20,8 +20,17 @@ The default uses https://hub.docker.com/r/centos/redis.<br>
 The image used in the current configuration is the redis-3.2 version from https://hub.docker.com/r/centos/redis-32-centos7
 
 ## Postgres-GIS
+Only two template configuration versions are provided: 
+- deployment with ephemeral persistence(emptyDir)
+- local build with deployment and PersistenceVolumeClaim for data storage
+Other variants can be adapted starting from these versions.
 
-The ConfigMap containing the setup.sql script ran at initialization is customized for CKAN.<br>
+The configuration uses 2 `Secrets` and one `ConfigMap` object to allow decoupling/injection
+of app specific configuration depending on environment.
+
+The `Secret` objects define environment variables split between env-specific and authorization/identity.
+
+The `ConfigMap`, containing the `setup.sql` script ran at initialization, is customized for CKAN.<br>
 It both initializes the needed extensions and creates the Datastore structure (DB,user, pass) needed by CKAN. 
 
 =======
