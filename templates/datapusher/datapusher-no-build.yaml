@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: ckan-datapusher
+  name: ckan-datapusher-no-build
   annotations:
     description: |-
       Teplate for deploying the Datapusher component for ckan
@@ -21,78 +21,33 @@ parameters:
     description: The OpenShift Namespace where the resources will be created.
     value: ckan
     required: true
-  - name: BASE_IMG_NAME
-    displayName: Base builder's source image
+  - name: RUNTIME_IMG_NAME
+    displayName: Source ImageStream name
     description: |-
-      Base builder's source image name used to create the app's specific builder
-      Must be in the form image:tag
-    value: "docker.io/centos/python-27-centos7"
-  - name: DATAPUSHER_REPO_URL
-#    value: https://github.com/clementmouchet/datapusher.git
-    value: https://github.com/ckan/datapusher.git
-    displayName: Source code repository URL
-    description: The URL of the repository with your application source code.
+      The existing OpenShift runtime image used to deploy and run the app
+      Shold be of the form image:tag
     required: true
-  - name: DATAPUSHER_REPO_REF
-    displayName: Source code repository Reference
-    description: >-
-      Set this to a branch name, tag or other ref of your repository if you are
-      not using the default branch.
-    value: "0.0.15"
+    value: "quay.io/dagniel/ckan.datapusher-on-openshift:0.0.15"
   - name: ENV_TZ
     displayName: Environment for timezone
     description: -|
       OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
       Useful for logging
     value: "Europe/Amsterdam"
+  - name: DATAPUSHER_RAM_LIMIT
+    displayName: Max ram allocatable for the Datapusher container
+    value: "256Mi"
+    required: true
+  - name: DATAPUSHER_RAM_REQ
+    displayName: Initial ram allocated for the Datapusher container
+    value: "64Mi"
+  - name: DATAPUSHER_CPU_REQ
+    displayName: Initial CPU allocated for the Datapusher container
+    value: "100m"
+  - name: DATAPUSHER_CPU_LIMIT
+    displayName: CPU limit for the Datapusher container
+    value: "300m"
 objects:
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    annotations:
-      description: S2I build to install and run application
-    labels:
-      app: ${NAME}
-      ckan.component: datapusher
-    name: ${NAME}-datapusher
-    namespace: ${NAMESPACE}
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${NAME}-datapusher:${DATAPUSHER_REPO_REF}
-        namespace: ${NAMESPACE}
-    source:
-      type: Git
-      git:
-        ref: ${DATAPUSHER_REPO_REF}
-        uri: ${DATAPUSHER_REPO_URL}
-    strategy:
-      sourceStrategy:
-        env:
-          - name: DISABLE_SETUP_PY_PROCESSING
-            value: "true"
-          - name: UPGRADE_PIP_TO_LATEST
-            value: "true"
-        from:
-          kind: DockerImage
-          name: ${BASE_IMG_NAME}
-        incremental: true
-      type: Source
-    successfulBuildsHistoryLimit: 2
-    failedBuildsHistoryLimit: 5
-    triggers:
-    - type: ConfigChange
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
-      description: Keeps track of changes in the final/OKD specific image
-    labels:
-      app: ${NAME}
-      ckan.component: datapusher
-    name: ${NAME}-datapusher
-    namespace: ${NAMESPACE}
 - apiVersion: v1
   kind: DeploymentConfig
   metadata:
@@ -115,7 +70,7 @@ objects:
           deploymentconfig: ${NAME}-datapusher
       spec:
         containers:
-        - image: null
+        - image: ${RUNTIME_IMG_NAME}
           imagePullPolicy: Always
           name: ${NAME}-datapusher
           command:
@@ -145,11 +100,11 @@ objects:
             timeoutSeconds: 10
           resources:
             limits:
-              cpu: 400m
-              memory: 256Mi
+              cpu: ${DATAPUSHER_CPU_LIMIT}
+              memory: ${DATAPUSHER_RAM_LIMIT}
             requests:
-              cpu: 100m
-              memory: 64Mi
+              cpu: ${DATAPUSHER_CPU_REQ}
+              memory: ${DATAPUSHER_RAM_REQ}
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
         dnsPolicy: ClusterFirst
@@ -160,15 +115,6 @@ objects:
         automountServiceAccountToken: false
     triggers:
     - type: ConfigChange
-    - type: ImageChange
-      imageChangeParams:
-        automatic: true
-        containerNames:
-        - ${NAME}-datapusher
-        from:
-          kind: ImageStreamTag
-          name: ${NAME}-datapusher:${DATAPUSHER_REPO_REF}
-          namespace: ${NAMESPACE}
     strategy:
       type: Rolling
       activeDeadlineSeconds: 21600

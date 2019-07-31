@@ -4,7 +4,7 @@ metadata:
   name: ckan-postgres-gis-ephemeral
   annotations:
     description: |-
-      Teplate for deploying the postgres with postgis component for ckan.
+      Template for deploying the postgres with postgis component for ckan.
       Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
@@ -13,7 +13,7 @@ metadata:
     openshift.io/display-name: Ckan - Postgresql(ephemeral) component
     tags: ckan,postgresql,crunchydata
     template.openshift.io/long-description: >-
-      Teplate for deploying the postgres with postgis component for ckan.
+      Template for deploying the postgres with postgis component for ckan.
       Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
@@ -188,55 +188,6 @@ objects:
     PG_DATASTORE_RO_USER: datastore_ro
     PG_DATASTORE_RO_PASS: ${DS_RO_PASS}
   type: Opaque
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
-      description: Image stream for custom postgres-gis
-    labels:
-      app: ${NAME}
-      ckan.component: postgresql
-    name: ${NAME}-postgresql
-    namespace: ${NAMESPACE}
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    annotations:
-      description: First layer build to obtain app's specific builder scripts
-    labels:
-      app: ${NAME}
-      ckan.component: postgresql
-    name: ${NAME}-postgresql
-    namespace: ${NAMESPACE}
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${NAME}-postgresql:${BASE_IMG_TAG}
-        namespace: ${NAMESPACE}
-    runPolicy: Serial
-    source:
-      type: Git
-      git:
-        ref: ${BASEBUILDER_REPO_REF}
-        uri: ${BASEBUILDER_REPO_URL}
-      contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
-      sourceSecret:
-        name: ${BASEBUILDER_REPO_AUTH}
-    strategy:
-      type: Docker
-      dockerStrategy:
-        env:
-          - name: CONTAINER_USER_NAME
-            value: postgres
-        from:
-          kind: DockerImage
-          name: ${BASE_IMG_NAME}:${BASE_IMG_TAG}
-    successfulBuildsHistoryLimit: 2
-    failedBuildsHistoryLimit: 5
-    triggers:
-#not linking the generic builder to the app's builder
-    - type: ConfigChange
 - kind: Service
   apiVersion: v1
   metadata:
@@ -359,40 +310,16 @@ objects:
                 secretKeyRef:
                   key: PG_DATASTORE_RO_PASS
                   name: ${PG_AUTH}
-#            - name: XLOGDIR
-#              valueFrom:
-#                secretKeyRef:
-#                  key: XLOGDIR
-#                  name: ${PG_ENV}
-#            - name: PGBACKREST
-#              valueFrom:
-#                secretKeyRef:
-#                  key: PGBACKREST
-#                  name: ${PG_ENV}
           volumeMounts:
             - mountPath: "/pgdata"
               name: pgdata
               readOnly: false
-#            - mountPath: "/pgwal"
-#              name: pgwal
-#              readOnly: false
-#            - mountPath: "/backrestrepo"
-#              name: backrestrepo
-#             readOnly: false
             - mountPath: "/pgconf"
               name: pgconf
               readOnly: true
         volumes:
         - name: pgdata
           emptyDir: {}
-#          persistentVolumeClaim:
-#            claimName: custom-config-pgdata
-#        - name: pgwal
-#          persistentVolumeClaim:
-#            claimName: custom-config-pgwal
-#        - name: backrestrepo
-#          persistentVolumeClaim:
-#            claimName: custom-config-br
         - name: pgconf
           configMap:
             name: ${PG_CONF_MAP}
@@ -400,7 +327,6 @@ objects:
         restartPolicy: Always
         schedulerName: default-scheduler
         securityContext: {}
-#       securityContext: "'"supplementalGroups": [65534]'"
         terminationGracePeriodSeconds: 30
         automountServiceAccountToken: false
     triggers:

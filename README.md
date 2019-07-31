@@ -19,6 +19,11 @@ The image used for redis is switched from the default/provided in docker-compose
 The default uses https://hub.docker.com/r/centos/redis.<br>
 The image used in the current configuration is the redis-3.2 version from https://hub.docker.com/r/centos/redis-32-centos7
 
+## Postgres-GIS
+
+The ConfigMap containing the setup.sql script ran at initialization is customized for CKAN.<br>
+It both initializes the needed extensions and creates the Datastore structure (DB,user, pass) needed by CKAN. 
+
 =======
 
 # TODOs

@@ -1,0 +1,209 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-datapusher-with-build
+  annotations:
+    description: |-
+      Teplate for deploying the Datapusher component for ckan
+    iconClass: icon-python
+    openshift.io/display-name: Ckan - Datapusher component
+    tags: ckan,datapusher,python
+    template.openshift.io/long-description: >-
+      Ckan - Datapusher component
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: BASE_IMG_NAME
+    displayName: Base builder's source image
+    description: |-
+      Base builder's source image name used to create the app's specific builder
+      Must be in the form image:tag
+    value: "docker.io/centos/python-27-centos7"
+  - name: DATAPUSHER_REPO_URL
+#    value: https://github.com/clementmouchet/datapusher.git
+    value: https://github.com/ckan/datapusher.git
+    displayName: Source code repository URL
+    description: The URL of the repository with your application source code.
+    required: true
+  - name: DATAPUSHER_REPO_REF
+    displayName: Source code repository Reference
+    description: >-
+      Set this to a branch name, tag or other ref of your repository if you are
+      not using the default branch.
+    value: "0.0.15"
+  - name: ENV_TZ
+    displayName: Environment for timezone
+    description: -|
+      OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
+      Useful for logging
+    value: "Europe/Amsterdam"
+  - name: DATAPUSHER_RAM_LIMIT
+    displayName: Max ram allocatable for the Datapusher container
+    value: "256Mi"
+    required: true
+  - name: DATAPUSHER_RAM_REQ
+    displayName: Initial ram allocated for the Datapusher container
+    value: "64Mi"
+  - name: DATAPUSHER_CPU_REQ
+    displayName: Initial CPU allocated for the Datapusher container
+    value: "100m"
+  - name: DATAPUSHER_CPU_LIMIT
+    displayName: CPU limit for the Datapusher container
+    value: "300m"
+objects:
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: S2I build to install and run application
+    labels:
+      app: ${NAME}
+      ckan.component: datapusher
+    name: ${NAME}-datapusher
+    namespace: ${NAMESPACE}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${NAME}-datapusher:${DATAPUSHER_REPO_REF}
+        namespace: ${NAMESPACE}
+    source:
+      type: Git
+      git:
+        ref: ${DATAPUSHER_REPO_REF}
+        uri: ${DATAPUSHER_REPO_URL}
+    strategy:
+      sourceStrategy:
+        env:
+          - name: DISABLE_SETUP_PY_PROCESSING
+            value: "true"
+          - name: UPGRADE_PIP_TO_LATEST
+            value: "true"
+        from:
+          kind: DockerImage
+          name: ${BASE_IMG_NAME}
+        incremental: true
+      type: Source
+    successfulBuildsHistoryLimit: 2
+    failedBuildsHistoryLimit: 5
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      description: Keeps track of changes in the final/OKD specific image
+    labels:
+      app: ${NAME}
+      ckan.component: datapusher
+    name: ${NAME}-datapusher
+    namespace: ${NAMESPACE}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the application server
+    labels:
+      app: ${NAME}
+      ckan.component: datapusher
+    name: ${NAME}-datapusher
+    namespace: ${NAMESPACE}
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 5
+    selector:
+      app: ${NAME}
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          deploymentconfig: ${NAME}-datapusher
+      spec:
+        containers:
+        - image: null
+          imagePullPolicy: Always
+          name: ${NAME}-datapusher
+          command:
+            - /bin/bash
+            - '-c'
+            - |
+              echo -e "#!"/"bin"/"bash\npython $HOME/datapusher/main.py $HOME/deployment/datapusher_settings.py\n" > $HOME/app.sh && \
+              chmod ug+rwx $HOME/app.sh && \
+              $STI_SCRIPTS_PATH/run
+          env:
+            - name: TZ
+              value: ${ENV_TZ}
+          ports:
+          - containerPort: 8800
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8800
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8800
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: ${DATAPUSHER_CPU_LIMIT}
+              memory: ${DATAPUSHER_RAM_LIMIT}
+            requests:
+              cpu: ${DATAPUSHER_CPU_REQ}
+              memory: ${DATAPUSHER_RAM_REQ}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        automountServiceAccountToken: false
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${NAME}-datapusher
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}-datapusher:${DATAPUSHER_REPO_REF}
+          namespace: ${NAMESPACE}
+    strategy:
+      type: Rolling
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 0
+        timeoutSeconds: 180
+        updatePeriodSeconds: 1
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      ckan.component: datapusher
+      app: ${NAME}
+    name: ${NAME}-datapusher
+  spec:
+    ports:
+    - name: datapusher
+      port: 8800
+      protocol: TCP
+      targetPort: 8800
+    selector:
+      deploymentconfig: ${NAME}-datapusher

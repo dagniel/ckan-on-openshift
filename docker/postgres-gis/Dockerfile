@@ -1,4 +1,4 @@
-FROM cruncy-postgres
+FROM docker.io/crunchydata/crunchy-postgres-gis:centos7-9.6.12-2.3.1
 
 LABEL io.k8s.display-name="Custom CKAN postgres build" \
 	io.k8s.description="Custom build for CKAN postgresql container based on https://github.com/CrunchyData/crunchy-containers/tree/2.3.1" \
@@ -7,6 +7,7 @@ LABEL io.k8s.display-name="Custom CKAN postgres build" \
   maintainer="dan.punga@gmail.com" \
   description="Custom build for CKAN postgresql container based on https://github.com/CrunchyData/crunchy-containers/tree/2.3.1"
 
+ENV CONTAINER_USER_NAME="postgres"
 
 COPY bin/postgres/ /opt/cpm/bin/
 COPY ./root/ /
