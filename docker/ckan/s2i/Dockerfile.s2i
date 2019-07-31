@@ -1,5 +1,5 @@
 #!!! this Dockerfile is only used for quay.io builds mimicking S2I
-FROM quay.io/dagniel/ckan.builder-on-openshift
+FROM quay.io/dagniel/ckan-on-openshift
 
 ENV DISABLE_SETUP_PY_PROCESSING ""
 ENV UPGRADE_PIP_TO_LATEST "true"
