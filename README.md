@@ -4,13 +4,13 @@ CKAN deployment configuration for Openshift
 
 ## Solr
 Images are found at https://quay.io/repository/dagniel/ckan.solr-on-openshift<br>
-The "base-" images are built based on the Docker configuration from ckan's repository for convenience(the images aren't built and pushed to a public image repository).
+The "base-" images are built based on the Docker configuration from ckan's repository for convenience(the images aren't built and pushed to a public image repository).<br>
 The Openshift specific image relies on the base image and is tagged with just the version of the original solr("6.6.2", "6.6.5"")
 
 ## Datapusher
 
 
-*Note: The choice to create a new image for datapusher is because the default image, pointed inside the docker-compose.yml file
+***Note**: The choice to create a new image for datapusher is because the default image, pointed inside the docker-compose.yml file
 in the original CKAN repository, is 4 years old(at the time of this writing); see https://hub.docker.com/r/clementmouchet/datapusher/tags*
 
 ## Redis
