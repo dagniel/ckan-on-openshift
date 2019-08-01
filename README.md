@@ -1,6 +1,12 @@
 # ckan-on-openshift
 CKAN deployment configuration for Openshift
 
+## CKAN 
+
+If the entire stack of templated components, that are needed by CKAN, has been consistently deployed (using the same application NAME and Openshift NAMESPACE),
+the parametrized `Secret` object that holds setup environment variables for CKAN(default is called `${NAME}-env`) should just work.
+
+If CKAN has to connect to specific endpoints for Redis, Datapusher, SOlr and Postgres, then the `Secret` must be manually edited accordingly.
 
 ## Solr
 Images are found at https://quay.io/repository/dagniel/ckan.solr-on-openshift<br>

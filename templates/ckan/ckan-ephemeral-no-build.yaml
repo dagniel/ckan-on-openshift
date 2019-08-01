@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: ckan-ephemeral
+  name: ckan-ephemeral-no-build
   annotations:
     description: |-
       Teplate for deploying ckan main app.
@@ -33,45 +33,13 @@ parameters:
       The exposed hostname that will route to the ckan service, if left blank
       a value will be defaulted.
     value: 'ckan.apps.oshift-pinfold.intra'
-  - name: BASEBUILDER_IMG_NAME
-    displayName: Base builder's source image
+  - name: RUNTIME_IMG_NAME
+    displayName: Source ImageStream name
     description: |-
-      Base builder's source image name used to create the app's specific builder
-      Must be in the form image:tag
-    value: "docker.io/centos/python-27-centos7"
+      The existing OpenShift runtime image used to deploy and run the app
+      Shold be of the form image:tag
     required: true
-  - name: BASEBUILDER_REPO_URL
-    displayName: Base builder repository URL
-    description: The URL of the repository with builder scripts specific for the app
-    value:
-    required: true
-  - name: BASEBUILDER_REPO_AUTH
-    displayName: Base builder Secret for repository authentication
-    description: The referenced OKD secret used to authenticaate to the specified repository
-    value: image-builder-gitlab-auth
-  - name: BASEBUILDER_REPO_REF
-    displayName: Base builder repository Reference
-    description: >-
-      Set this to a branch name, tag or other ref of your repository if you are
-      not using the default branch.
-    value: "development"
-  - name: BASEBUILDER_REPO_CONTEXT_DIR
-    displayName: Base builder repository Context Directory
-    description: >-
-      Set this to the relative path to your project if it is not in the root of
-      your repository.
-    value: "builders/ckan/ckan"
-  - name: APPSRC_REPO_URL
-    value: https://github.com/ckan/ckan.git
-    displayName: Source code repository URL
-    description: The URL of the repository with your application source code.
-    required: true
-  - name: APPSRC_REPO_REF
-    displayName: Source code repository Reference
-    description: >-
-      Set this to a branch name, tag or other ref of your repository if you are
-      not using the default branch.
-    value: "ckan-2.8.2"
+    value: "quay.io/dagniel/ckan-on-openshift:2.8.2"
   - name: CKAN_ENV
     displayName: Reference to Secret holding env vars
     required: true
@@ -135,111 +103,9 @@ objects:
 #    CKAN_SOLR_USER:
 #    CKAN_SOLR_PASSWORD
 #### also the default, internal sysadmin user name
-    CKAN_SITE_ID: civity
+    CKAN_SITE_ID: okd-ckan
     CKAN_SITE_URL: http://${APPLICATION_HOSTNAME}
     CKAN_STORAGE_PATH: /opt/app-root/storage
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
-      description: Keeps track of changes in the builder image for ckan
-    labels:
-      app: ${NAME}
-      ckan.component: ckan
-    name: ${NAME}-builder
-    namespace: ${NAMESPACE}
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
-      description: Image stream for final ckan component
-    labels:
-      app: ${NAME}
-      ckan.component: ckan
-    name: ${NAME}
-    namespace: ${NAMESPACE}
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    annotations:
-      description: First layer build to obtain app's specific builder scripts
-    labels:
-      app: ${NAME}
-      ckan.component: ckan
-    name: ${NAME}-builder
-    namespace: ${NAMESPACE}
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${NAME}-builder:latest
-        namespace: ${NAMESPACE}
-    runPolicy: Serial
-    source:
-      type: Git
-      git:
-        ref: ${BASEBUILDER_REPO_REF}
-        uri: ${BASEBUILDER_REPO_URL}
-      contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
-      sourceSecret:
-        name: ${BASEBUILDER_REPO_AUTH}
-    strategy:
-      type: Docker
-      dockerStrategy:
-        env:
-          - name: PGSQL_SCL
-            valueFrom:
-              secretKeyRef:
-                key: POSTGRES_TOOLS_VERSION
-                name: ${CKAN_ENV}
-        from:
-          kind: DockerImage
-          name: ${BASEBUILDER_IMG_NAME}
-    successfulBuildsHistoryLimit: 2
-    failedBuildsHistoryLimit: 5
-    triggers:
-#not linking the generic builder to the app's builder
-    - type: ConfigChange
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    annotations:
-      description: S2I build to install and run ckan component
-    labels:
-      app: ${NAME}
-      ckan.component: ckan
-    name: ${NAME}
-    namespace: ${NAMESPACE}
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${NAME}:${APPSRC_REPO_REF}
-        namespace: ${NAMESPACE}
-    source:
-      type: Git
-      git:
-        ref: ${APPSRC_REPO_REF}
-        uri: ${APPSRC_REPO_URL}
-    strategy:
-      sourceStrategy:
-        env:
-          - name: DISABLE_SETUP_PY_PROCESSING
-            value: ""
-          - name: UPGRADE_PIP_TO_LATEST
-            value: "true"
-        from:
-          kind: ImageStreamTag
-          name: ${NAME}-builder:latest
-          namespace: ${NAMESPACE}
-        incremental: true
-      type: Source
-    successfulBuildsHistoryLimit: 2
-    failedBuildsHistoryLimit: 5
-    triggers:
-    - type: ConfigChange
-    - type: ImageChange
-      imageChange: {}
 - apiVersion: v1
   kind: DeploymentConfig
   metadata:
@@ -262,7 +128,7 @@ objects:
           deploymentconfig: ${NAME}
       spec:
         containers:
-        - image: null
+        - image: "${RUNTIME_IMG_NAME}"
           imagePullPolicy: Always
           name: ${NAME}
           command:
@@ -332,12 +198,6 @@ objects:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-#            - mountPath: /opt/app-root/config
-#              name: ckan-config
-#              readOnly: false
-#            - mountPath: /opt/app-root/src
-#              name: ckan-home
-#              readOnly: false
             - mountPath: /opt/app-root/storage
               name: ckan-storage
               readOnly: false
@@ -345,10 +205,6 @@ objects:
               name: template-config
               readOnly: true
         volumes:
-#        - name: ckan-config
-#          emptyDir: {}
-#        - name: ckan-home
-#          emptyDir: {}
         - name: ckan-storage
           emptyDir: {}
         - name: template-config
@@ -369,15 +225,6 @@ objects:
         automountServiceAccountToken: false
     triggers:
     - type: ConfigChange
-    - type: ImageChange
-      imageChangeParams:
-        automatic: true
-        containerNames:
-        - ${NAME}
-        from:
-          kind: ImageStreamTag
-          name: ${NAME}:${APPSRC_REPO_REF}
-          namespace: ${NAMESPACE}
     strategy:
       type: Rolling
       activeDeadlineSeconds: 21600
@@ -443,7 +290,7 @@ objects:
       app: ${NAME}
       ckan.component: ckan
   data:
-    CKAN_DO_DB_INIT: "false"
+    CKAN_DO_DB_INIT: "true"
     CKAN_MAX_UPLOAD_SIZE_MB: "30"
     CKAN_SMTP_MAIL_FROM: ckan@lab-okd.net
     CKAN_SMTP_PASSWORD: some_password
@@ -451,7 +298,7 @@ objects:
     CKAN_SMTP_STARTTLS: "True"
     CKAN_SMTP_USER: account@hotmail.com
     CKAN_USE_CONF_TEMPLATE: "true"
-    CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher resource_proxy geo_view wmts_view geojson_view deadoralive eurovoc"
+    CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
     ckan.ini: |-
       #
       # CKAN - Pylons configuration
