@@ -9,7 +9,7 @@ LABEL io.k8s.display-name="Custom Solr build for OKD" \
 
 USER 0
 
-RUN chown -R 1001:0 /opt/solr /opt/mysolrhome /docker-entrypoint-initdb.d /opt/docker-solr && \
-  chmod -R g=u /opt/solr /opt/mysolrhome /docker-entrypoint-initdb.d /opt/docker-solr
+RUN chown -R 1001:0 /opt/solr /docker-entrypoint-initdb.d /opt/docker-solr && \
+  chmod -R g=u /opt/solr /docker-entrypoint-initdb.d /opt/docker-solr
 
 USER 1001
