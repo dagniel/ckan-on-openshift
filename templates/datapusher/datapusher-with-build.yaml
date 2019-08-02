@@ -125,6 +125,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
+          ckan.component: datapusher
           deploymentconfig: ${NAME}-datapusher
       spec:
         containers:

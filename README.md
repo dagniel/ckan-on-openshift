@@ -3,14 +3,45 @@ CKAN deployment configuration for Openshift
 
 ## CKAN 
 
-If the entire stack of templated components, that are needed by CKAN, has been consistently deployed (using the same application NAME and Openshift NAMESPACE),
-the parametrized `Secret` object that holds setup environment variables for CKAN(default is called `${NAME}-env`) should just work.
+Only two template configuration versions are provided: 
+- deployment with ephemeral persistence(emptyDir)
+- local build with deployment and PersistenceVolumeClaim for data storage
+Other variants can be adapted starting from these versions.
 
-If CKAN has to connect to specific endpoints for Redis, Datapusher, SOlr and Postgres, then the `Secret` must be manually edited accordingly.
+### Configuration
+
+If the entire stack of templated components, that are needed by CKAN, has been consistently deployed (using the same application NAME and 
+Openshift NAMESPACE),the parametrized `Secret` and `ConfigMap` objects that hold setup environment variables for CKAN should just work.
+
+If CKAN is built with different configurations or has to connect to specific endpoints for Redis, Datapusher, SOlr and Postgres, then 
+the appropriate configuration must be manually edited inside the `Secret` and/or `ConfigMap`.
+
+#### `ckan` ConfigMap
+Holds environment variables and configuration files that are CKAN(app)-specific
+Components:
+- `ckan.ini` main configuration file for CKAN
+	- **required**
+	- can be in raw/complete form so it may be used "as-is"
+	- can be in templated form, which means, using environment variables; the initialization procedure(`ckan_entrypoint.sh` script) 
+	will try to substitute them
+- `who.ini` file 
+	- optional
+- `CKAN_` environment variables 
+	- used at container initialization
+	- there are 2 markers/flags used by the init script
+		- `CKAN_USE_CONF_TEMPLATE` if set to `true`, the init script treats the supplied `ckan.ini` file as template and will try to
+		substitute the variables found in it with the values of the equivalent environment variables  
+    - `CKAN_DO_DB_INIT` if set to `true`, the init script will initialize the database and create and save the initialization
+    script for the `datapusher` database
+	- the rest of the env vars will be substituted inside the `ckan.ini` file if it is marked as being template
+
+#### `ckan` Secret
+Mainly holds environment variables that container-specific.
 
 ## Solr
 Images are found at https://quay.io/repository/dagniel/ckan.solr-on-openshift<br>
-The "base-" images are built based on the Docker configuration from ckan's repository for convenience(the images aren't built and pushed to a public image repository).<br>
+The "base-" images are built based on the Docker configuration from ckan's repository for convenience(the images aren't built 
+and pushed to a public image repository).<br>
 The Openshift specific image relies on the base image and is tagged with just the version of the original solr("6.6.2", "6.6.5"")
 
 ## Datapusher
@@ -47,6 +78,7 @@ It both initializes the needed extensions and creates the Datastore structure (D
 - decouple postgres-gis deployment from CKAN-specific datastore initialization
 - extra env vars: (custom)container ports
 - refactor builder dir structure for postgres-gis
-- mention: all current config for custom builds is done based on publicly acessibly repos; for private repos the BuildConfigs must be customized
+- mention: all current config for custom builds is done based on publicly acessibly repos; for private repos the BuildConfigs 
+must be customized
 - mention: for postgres users and passwords are generated from template's params by using expressions
 

@@ -288,6 +288,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
+          ckan.component: postgresql
           deploymentconfig: ${NAME}-postgresql
       spec:
         containers:

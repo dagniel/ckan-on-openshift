@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: ot-ckan-persistent
+  name: ckan-persistent-with-build
   annotations:
     description: |-
       Teplate for deploying ckan main app.
@@ -9,31 +9,30 @@ metadata:
 
       Template for components with persistent storage
     iconClass: icon-python
-    openshift.io/display-name: Onetrail Ckan(persistent)
+    openshift.io/display-name: Ckan(persistent)
     tags: ckan,python
     template.openshift.io/long-description: >-
       Template for deploying ckan main app.
       Based on https://github.com/ckan/ckan.git release
 
       Template for components with persistent storage
-    template.openshift.io/provider-display-name: Onetrail
 parameters:
   - name: NAME
     displayName: Application name
     description: The name assigned to all of the frontend objects defined in this template.
-    value: ot-ckan
+    value: ckan
     required: true
   - name: NAMESPACE
     displayName: Namespace
     description: The OpenShift Namespace where the resources will be created.
-    value: ot-ckan
+    value: ckan
     required: true
   - name: APPLICATION_HOSTNAME
     displayName: Application Hostname
     description: >-
       The exposed hostname that will route to the ckan service, if left blank
       a value will be defaulted.
-    value: 'ot-ckan.apps.oshift-pinfold.intra'
+    value: 'ckan.apps.oshift-pinfold.intra'
   - name: BASEBUILDER_IMG_NAME
     displayName: Base builder's source image
     description: |-
@@ -44,7 +43,7 @@ parameters:
   - name: BASEBUILDER_REPO_URL
     displayName: Base builder repository URL
     description: The URL of the repository with builder scripts specific for the app
-    value: git@gitlab.onetrail.net:Onetrail/Pinfold/Openshift/imageBuilder.git
+    value:
     required: true
   - name: BASEBUILDER_REPO_AUTH
     displayName: Base builder Secret for repository authentication
@@ -76,19 +75,19 @@ parameters:
   - name: CKAN_ENV
     displayName: Reference to Secret holding env vars
     required: true
-    value: ot-ckan-env
+    value: ckan-env
   - name: CKAN_CONF_MAP
     displayName: Reference to ConfigMap with runtime configuration
     required: true
-    value: ot-ckan
+    value: ckan
   - name: CKAN_PG_ENV
     displayName: Reference to Secret holding Postgres env vars
     required: true
-    value: ot-ckan-postgresql-env
+    value: ckan-postgresql-env
   - name: CKAN_PG_AUTH
     displayName: Reference to Secret holding Postgres authentication env vars
     required: true
-    value: ot-ckan-postgresql-auth
+    value: ckan-postgresql-auth
   - name: CKAN_STORAGE_SIZE
     displayName: Value for the CKAN storage
     description: -|
@@ -131,24 +130,7 @@ objects:
 #    CKAN_HOME: /opt/app-root/src/ckan
 # used in entrypoint and original Dockerfile; useful??
     CKAN_CONFIG: /opt/app-root/config
-# used in original Dockerfile; useful???
-#    CKAN_VENV: /opt/app-root/src
-# used in docker-compose
-#    CKAN_PORT: '5000'
-    POSTGRES_HOST: ${NAME}-postgresql.${NAMESPACE}.svc
-    REDIS_HOST: ${NAME}-redis.${NAMESPACE}.svc
-    REDIS_PORT: '6379'
-    REDIS_DB: '1'
-    SOLR_HOST: ${NAME}-solr.${NAMESPACE}.svc
-    SOLR_PORT: '8983'
-    DATAPUSHER_HOST: ${NAME}-datapusher.${NAMESPACE}.svc
-    DATAPUSHER_PORT: '8800'
-#### not used: can be configured to specify HTTP Basic authentication details for all Solr requests
-#    CKAN_SOLR_USER:
-#    CKAN_SOLR_PASSWORD
-    CKAN_SITE_ID: civity
-    CKAN_SITE_URL: http://${APPLICATION_HOSTNAME}
-    CKAN_STORAGE_PATH: /opt/app-root/storage
+    CKAN_TEMPLATE_CONFIG: /opt/config
 - apiVersion: v1
   kind: ImageStream
   metadata:
@@ -270,6 +252,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
+          ckan.component: ckan
           deploymentconfig: ${NAME}
       spec:
         containers:
@@ -343,12 +326,6 @@ objects:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-#            - mountPath: /opt/app-root/config
-#              name: ckan-config
-#              readOnly: false
-#            - mountPath: /opt/app-root/src
-#              name: ckan-home
-#              readOnly: false
             - mountPath: /opt/app-root/storage
               name: ckan-storage
               readOnly: false
@@ -356,10 +333,6 @@ objects:
               name: template-config
               readOnly: true
         volumes:
-#        - name: ckan-config
-#          emptyDir: {}
-#        - name: ckan-home
-#          emptyDir: {}
         - name: ckan-storage
           persistentVolumeClaim:
             claimName: ${NAME}-storage
@@ -463,15 +436,26 @@ objects:
       app: ${NAME}
       ckan.component: ckan
   data:
-    CKAN_DO_DB_INIT: "false"
     CKAN_USE_CONF_TEMPLATE: "true"
+    CKAN_DO_DB_INIT: "true"
+    CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
+    POSTGRES_HOST: ${NAME}-postgresql.${NAMESPACE}.svc.cluster.local
+    REDIS_HOST: ${NAME}-redis.${NAMESPACE}.svc.cluster.local
+    REDIS_PORT: '6379'
+    REDIS_DB: '1'
+    SOLR_HOST: ${NAME}-solr.${NAMESPACE}.svc.cluster.local
+    SOLR_PORT: '8983'
+    DATAPUSHER_HOST: ${NAME}-datapusher.${NAMESPACE}.svc.cluster.local
+    DATAPUSHER_PORT: '8800'
+    CKAN_SITE_ID: okd-ckan
+    CKAN_SITE_URL: http://${APPLICATION_HOSTNAME}
+    CKAN_STORAGE_PATH: /opt/app-root/storage
     CKAN_MAX_UPLOAD_SIZE_MB: "30"
     CKAN_SMTP_MAIL_FROM: ckan@lab-okd.net
     CKAN_SMTP_PASSWORD: some_password
     CKAN_SMTP_SERVER: smtp.office365.com:587
     CKAN_SMTP_STARTTLS: "True"
     CKAN_SMTP_USER: account@office365.com
-    CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
     ckan.ini: |-
       #
       # CKAN - Pylons configuration

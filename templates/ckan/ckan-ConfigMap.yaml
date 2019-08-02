@@ -11,7 +11,7 @@ metadata:
         will be changed with values from the equivalent values from the environment
         In this case the keys can be used inside the ckan.ini file.
 
-        If in raw form the contents will be used as is
+        If in raw form the content will be used as is
 
         The switch between template/raw type of processing is done via setting the CKAN_USE_CONF_TEMPLATE variable
          - "true" -> ckan.ini will be processed as template
@@ -19,15 +19,26 @@ metadata:
   labels:
     ckan.component: ckan
 data:
+  CKAN_USE_CONF_TEMPLATE: "true"
   CKAN_DO_DB_INIT: "true"
+  CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
+  POSTGRES_HOST: ckan-persist-postgresql.pub-ckan.svc.cluster.local
+  REDIS_HOST: ckan-persist-redis.pub-ckan.svc.cluster.local
+  REDIS_PORT: '6379'
+  REDIS_DB: '1'
+  SOLR_HOST: ckan-solr.pub-ckan.svc.cluster.local
+  SOLR_PORT: '8983'
+  DATAPUSHER_HOST: ckan-datapusher.pub-ckan.svc.cluster.local
+  DATAPUSHER_PORT: '8800'
+  CKAN_SITE_ID: okd
+  CKAN_SITE_URL: http://ckan.apps.oshift-pinfold.intra
+  CKAN_STORAGE_PATH: /opt/app-root/storage
   CKAN_MAX_UPLOAD_SIZE_MB: "30"
   CKAN_SMTP_MAIL_FROM: ckan@lab-okd.net
   CKAN_SMTP_PASSWORD: some_password
   CKAN_SMTP_SERVER: smtp.office365.com:587
   CKAN_SMTP_STARTTLS: "True"
   CKAN_SMTP_USER: account@hotmail.com
-  CKAN_USE_CONF_TEMPLATE: "true"
-  CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
   ckan.ini: |-
     #
     # CKAN - Pylons configuration

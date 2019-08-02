@@ -87,25 +87,6 @@ objects:
 # used in entrypoint and original Dockerfile; useful??
     CKAN_CONFIG: /opt/app-root/config
     CKAN_TEMPLATE_CONFIG: /opt/config
-# used in original Dockerfile; useful???
-#    CKAN_VENV: /opt/app-root/src
-# used in docker-compose
-#    CKAN_PORT: '5000'
-    POSTGRES_HOST: ${NAME}-postgresql.${NAMESPACE}.svc
-    REDIS_HOST: ${NAME}-redis.${NAMESPACE}.svc
-    REDIS_PORT: '6379'
-    REDIS_DB: '1'
-    SOLR_HOST: ${NAME}-solr.${NAMESPACE}.svc
-    SOLR_PORT: '8983'
-    DATAPUSHER_HOST: ${NAME}-datapusher.${NAMESPACE}.svc
-    DATAPUSHER_PORT: '8800'
-#### not used: can be configured to specify HTTP Basic authentication details for all Solr requests
-#    CKAN_SOLR_USER:
-#    CKAN_SOLR_PASSWORD
-#### also the default, internal sysadmin user name
-    CKAN_SITE_ID: okd-ckan
-    CKAN_SITE_URL: http://${APPLICATION_HOSTNAME}
-    CKAN_STORAGE_PATH: /opt/app-root/storage
 - apiVersion: v1
   kind: DeploymentConfig
   metadata:
@@ -125,6 +106,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
+          ckan.component: ckan
           deploymentconfig: ${NAME}
       spec:
         containers:
@@ -290,15 +272,26 @@ objects:
       app: ${NAME}
       ckan.component: ckan
   data:
+    CKAN_USE_CONF_TEMPLATE: "true"
     CKAN_DO_DB_INIT: "true"
+    CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
+    POSTGRES_HOST: ${NAME}-postgresql.${NAMESPACE}.svc.cluster.local
+    REDIS_HOST: ${NAME}-redis.${NAMESPACE}.svc.cluster.local
+    REDIS_PORT: '6379'
+    REDIS_DB: '1'
+    SOLR_HOST: ${NAME}-solr.${NAMESPACE}.svc.cluster.local
+    SOLR_PORT: '8983'
+    DATAPUSHER_HOST: ${NAME}-datapusher.${NAMESPACE}.svc.cluster.local
+    DATAPUSHER_PORT: '8800'
+    CKAN_SITE_ID: okd-ckan
+    CKAN_SITE_URL: http://${APPLICATION_HOSTNAME}
+    CKAN_STORAGE_PATH: /opt/app-root/storage
     CKAN_MAX_UPLOAD_SIZE_MB: "30"
     CKAN_SMTP_MAIL_FROM: ckan@lab-okd.net
     CKAN_SMTP_PASSWORD: some_password
     CKAN_SMTP_SERVER: smtp.office365.com:587
     CKAN_SMTP_STARTTLS: "True"
     CKAN_SMTP_USER: account@hotmail.com
-    CKAN_USE_CONF_TEMPLATE: "true"
-    CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
     ckan.ini: |-
       #
       # CKAN - Pylons configuration
