@@ -20,7 +20,7 @@ metadata:
     ckan.component: ckan
 data:
   CKAN_USE_CONF_TEMPLATE: "true"
-  CKAN_DO_DB_INIT: "true"
+  CKAN_DO_DB_INIT: "false"
   CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
   POSTGRES_HOST: ckan-persist-postgresql.pub-ckan.svc.cluster.local
   REDIS_HOST: ckan-persist-redis.pub-ckan.svc.cluster.local
@@ -39,6 +39,8 @@ data:
   CKAN_SMTP_SERVER: smtp.office365.com:587
   CKAN_SMTP_STARTTLS: "True"
   CKAN_SMTP_USER: account@hotmail.com
+  CKAN_APP_UUID: 2d5631c6-7e1e-ac65-873b-513d31368343
+  CKAN_BEAKER_SECRET: 6my3od66QhPbbacNuLodqdEgR
   ckan.ini: |-
     #
     # CKAN - Pylons configuration
@@ -72,11 +74,11 @@ data:
     # This is the secret token that the beaker library uses to hash the cookie sent
     # to the client. `paster make-config` generates a unique value for this each
     # time it generates a config file.
-    beaker.session.secret = mIzlbKUJk6rXfa2MflviAkntH
+    beaker.session.secret = $CKAN_BEAKER_SECRET
 
     # `paster make-config` generates a unique value for this each time it generates
     # a config file.
-    app_instance_uuid = 7ef54d4f-22df-41db-91fc-b1819873ae43
+    app_instance_uuid = $CKAN_APP_UUID
 
     # repoze.who config
     who.config_file = %(here)s/who.ini

@@ -36,7 +36,7 @@ Components:
 	- the rest of the env vars will be substituted inside the `ckan.ini` file if it is marked as being template
 
 #### `ckan` Secret
-Mainly holds environment variables that container-specific.
+Mainly holds environment variables that are container-specific.
 
 ## Solr
 Images are found at https://quay.io/repository/dagniel/ckan.solr-on-openshift<br>
@@ -81,4 +81,5 @@ It both initializes the needed extensions and creates the Datastore structure (D
 - mention: all current config for custom builds is done based on publicly acessibly repos; for private repos the BuildConfigs 
 must be customized
 - mention: for postgres users and passwords are generated from template's params by using expressions
+- patch images to solve security issues found by quay.io 
 

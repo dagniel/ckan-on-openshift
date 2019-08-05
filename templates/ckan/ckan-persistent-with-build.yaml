@@ -45,10 +45,10 @@ parameters:
     description: The URL of the repository with builder scripts specific for the app
     value:
     required: true
-  - name: BASEBUILDER_REPO_AUTH
-    displayName: Base builder Secret for repository authentication
-    description: The referenced OKD secret used to authenticaate to the specified repository
-    value: image-builder-gitlab-auth
+#  - name: BASEBUILDER_REPO_AUTH
+#    displayName: Base builder Secret for repository authentication
+#    description: The referenced OKD secret used to authenticaate to the specified repository
+#    value: image-builder-gitlab-auth
   - name: BASEBUILDER_REPO_REF
     displayName: Base builder repository Reference
     description: >-
@@ -106,6 +106,16 @@ parameters:
       OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
       Useful for logging
     value: "Europe/Amsterdam"
+  - name: CKAN_APP_UUID
+    displayName: Unique id needed by CKAN(conf)
+    from: '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+    generate: expression
+    required: true
+  - name: CKAN_BEAKER_SECRET
+    displayName: Secret needed by CKAN(conf)
+    from: '[a-zA-Z0-9]{25}'
+    generate: expression
+    required: true
 objects:
 - apiVersion: v1
   kind: Secret
@@ -174,8 +184,8 @@ objects:
         ref: ${BASEBUILDER_REPO_REF}
         uri: ${BASEBUILDER_REPO_URL}
       contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
-      sourceSecret:
-        name: ${BASEBUILDER_REPO_AUTH}
+#      sourceSecret:
+#        name: ${BASEBUILDER_REPO_AUTH}
     strategy:
       type: Docker
       dockerStrategy:
@@ -456,6 +466,8 @@ objects:
     CKAN_SMTP_SERVER: smtp.office365.com:587
     CKAN_SMTP_STARTTLS: "True"
     CKAN_SMTP_USER: account@office365.com
+    CKAN_APP_UUID: ${CKAN_APP_UUID}
+    CKAN_BEAKER_SECRET: ${CKAN_BEAKER_SECRET}
     ckan.ini: |-
       #
       # CKAN - Pylons configuration
@@ -489,11 +501,11 @@ objects:
       # This is the secret token that the beaker library uses to hash the cookie sent
       # to the client. `paster make-config` generates a unique value for this each
       # time it generates a config file.
-      beaker.session.secret = mIzlbKUJk6rXfa2MflviAkntH
+      beaker.session.secret = $CKAN_BEAKER_SECRET
 
       # `paster make-config` generates a unique value for this each time it generates
       # a config file.
-      app_instance_uuid = 7ef54d4f-22df-41db-91fc-b1819873ae43
+      app_instance_uuid = $CKAN_APP_UUID
 
       # repoze.who config
       who.config_file = %(here)s/who.ini
