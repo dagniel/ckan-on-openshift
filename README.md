@@ -1,6 +1,5 @@
 # ckan-on-openshift
 CKAN deployment configuration for Openshift
-<<<<<<< HEAD
 =======
 
 ## CKAN 
@@ -131,4 +130,3 @@ must be customized
 - mention: for postgres users and passwords are generated from template's params by using expressions
 - patch images to solve security issues found by quay.io 
 
->>>>>>> b385cde... Init dev (#1)
