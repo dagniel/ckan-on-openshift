@@ -56,6 +56,12 @@ parameters:
     Base builder's source image name used to create the app's specific builder for postgres
     Must be in the form image:tag
   value: "centos7-9.6.14-2.4.1"
+- name: CONFIG_REPO_BRANCH
+  displayName: Configuration repository reference
+  description: >-
+    Set this to a branch name, tag or other ref of your repository if you are
+    not using the default branch.
+  value: "master"
 - name: SOLR_RAM_LIMIT
   displayName: Max ram allocatable for the solr container
   description: |-
@@ -178,7 +184,7 @@ objects:
       description: First layer build to obtain solr image specific to ckan
     labels:
       app: ${NAME}
-      ckan.component: solr-base
+      ckan.component: solr
     name: ${NAME}-solr-base
     namespace: ${NAMESPACE}
   spec:
@@ -225,7 +231,7 @@ objects:
     source:
       type: Git
       git:
-        ref: "init-dev"
+        ref: ${CONFIG_REPO_BRANCH}
         uri: "https://github.com/dagniel/ckan-on-openshift.git"
       contextDir: "docker/solr/${SOLR_VERSION}"
 # used with a private repo
@@ -856,7 +862,7 @@ objects:
     source:
       type: Git
       git:
-        ref: "init-dev"
+        ref: ${CONFIG_REPO_BRANCH}
         uri: "https://github.com/dagniel/ckan-on-openshift.git"
       contextDir: "docker/postgres-gis/${PG_VERSION}"
 #      sourceSecret:
@@ -1082,13 +1088,13 @@ objects:
     output:
       to:
         kind: ImageStreamTag
-        name: ${NAME}:base-${CKAN_VERSION}
+        name: ${NAME}:builder-${CKAN_VERSION}
         namespace: ${NAMESPACE}
     runPolicy: Serial
     source:
       type: Git
       git:
-        ref: "init-dev"
+        ref: ${CONFIG_REPO_BRANCH}
         uri: "https://github.com/dagniel/ckan-on-openshift.git"
       contextDir: "docker/ckan/builder"
 #      sourceSecret:
@@ -1140,7 +1146,7 @@ objects:
             value: "true"
         from:
           kind: ImageStreamTag
-          name: ${NAME}:base-${CKAN_VERSION}
+          name: ${NAME}:builder-${CKAN_VERSION}
           namespace: ${NAMESPACE}
         incremental: true
       type: Source

@@ -164,16 +164,6 @@ objects:
   kind: ImageStream
   metadata:
     annotations:
-      description: Keeps track of changes in the builder image for ckan
-    labels:
-      app: ${NAME}
-      ckan.component: ckan
-    name: ${NAME}-builder
-    namespace: ${NAMESPACE}
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
       description: Image stream for final ckan component
     labels:
       app: ${NAME}
@@ -194,7 +184,7 @@ objects:
     output:
       to:
         kind: ImageStreamTag
-        name: ${NAME}:base-${APPSRC_REPO_REF}
+        name: ${NAME}:builder-${APPSRC_REPO_REF}
         namespace: ${NAMESPACE}
     runPolicy: Serial
     source:
@@ -252,7 +242,7 @@ objects:
             value: "true"
         from:
           kind: ImageStreamTag
-          name: ${NAME}:base-${APPSRC_REPO_REF}
+          name: ${NAME}:builder-${APPSRC_REPO_REF}
           namespace: ${NAMESPACE}
         incremental: true
       type: Source

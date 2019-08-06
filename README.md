@@ -1,11 +1,31 @@
 # ckan-on-openshift
 CKAN deployment configuration for Openshift
 
+Holds both Docker and Openshift configuration for the standard CKAN stack:
+- Solr
+- Datapusher
+- Redis
+- Postgres with gis
+- CKAN
+- CKAN extensions
+
+## Deploying the entire stack
+
+The `full-CKAN-stack.yaml` file holds a template to deploy all components of CKAN inside the same Openshift namespace.
+
+The template will deploy components using the custom build of images, and images stored in the 
+Integrated Container Registry, so in order for it to work, one must be available.
+All components are deployed with ephemeral storage; for other variants the template needs to be modified.
+
+### Usage
+....
+
 ## CKAN 
 
 Only two template configuration versions are provided: 
 - deployment with ephemeral persistence(emptyDir)
 - local build with deployment and PersistenceVolumeClaim for data storage
+
 Other variants can be adapted starting from these versions.
 
 ### Configuration
@@ -32,7 +52,7 @@ Components:
 	- there are 2 markers/flags used by the init script
 		- `CKAN_USE_CONF_TEMPLATE` if set to `true`, the init script treats the supplied `ckan.ini` file as template and will try to
 		substitute the variables found in it with the values of the equivalent environment variables  
-    - `CKAN_DO_DB_INIT` if set to `true`, the init script will initialize the database and create and save the initialization
+		- `CKAN_DO_DB_INIT` if set to `true`, the init script will initialize the database and create and save the initialization
     script for the `datapusher` database
 	- the rest of the env vars will be substituted inside the `ckan.ini` file if it is marked as being template
 
@@ -227,7 +247,9 @@ It both initializes the needed extensions and creates the Datastore structure (D
 
 - mention: all current config for custom builds is done based on publicly acessibly repos; for private repos the BuildConfigs 
 must be customized
-- mention: for postgres users and passwords are generated from template's params by using expressions
-
 - patch images to solve security issues found by quay.io 
-
+- CKAN's db init 
+	- check if procedure has run even with CKAN_DO_DB_INIT=true
+	- version to initialize Datastore automatically (other than with pgclient installed inside CKAN's container and 
+	root access to the DB)
+- ? group specific containers inside same Pod?

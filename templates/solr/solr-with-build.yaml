@@ -109,7 +109,7 @@ objects:
         description: First layer build to obtain solr image specific to ckan
       labels:
         app: ${NAME}
-        ckan.component: solr-base
+        ckan.component: solr
       name: ${NAME}-solr-base
       namespace: ${NAMESPACE}
     spec:
