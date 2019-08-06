@@ -21,15 +21,11 @@ parameters:
     description: The OpenShift Namespace where the resources will be created.
     value: ckan
     required: true
-  - name: OUTPUT_IMG_NAME
-    displayName: ImageStream name for the output image
+  - name: OUTPUT_IMG
+    displayName: ImageStream name and tag for the output image
     value: ckan
     required: true
-  - name: OUTPUT_IMG_TAG
-    displayName: Tag name for the output image
-    value: "pip"
-    required: true
-  - name: BASEBUILDER_IMG_NAME
+  - name: BASEBUILDER_IMG
     displayName: Base builder's source image
     description: |-
       Base builder's source image name used to create the app's specific builder
@@ -81,7 +77,7 @@ objects:
     output:
       to:
         kind: ImageStreamTag
-        name: ${OUTPUT_IMG_NAME}:${OUTPUT_IMG_TAG}
+        name: ${OUTPUT_IMG}
         namespace: ${NAMESPACE}
     runPolicy: Serial
     source:
@@ -102,10 +98,10 @@ objects:
             value: ${CKAN_EXT_LIST}
         from:
           kind: DockerImage
-          name: ${BASEBUILDER_IMG_NAME}
+          name: ${BASEBUILDER_IMG}
 ## use this when referencing a local ImageStream
 #          kind: ImageStreamTag
-#          name: ${BASEBUILDER_IMG_NAME}
+#          name: ${BASEBUILDER_IMG}
 #          namespace: ${NAMESPACE}
     successfulBuildsHistoryLimit: 2
     failedBuildsHistoryLimit: 5

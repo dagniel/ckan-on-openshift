@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: ckan-ext-bulk
+  name: ckan-ext-multiple
   annotations:
     description: |-
       Template for deploying CKAN extensions via pip install from PyPi/Docker build
@@ -78,7 +78,7 @@ objects:
     labels:
       app: ${NAME}
       ckan.component: ckan-ext
-    name: ${NAME}-ext-bulk
+    name: ${NAME}-ext-multiple
     namespace: ${NAMESPACE}
   spec:
     output:
@@ -102,7 +102,7 @@ objects:
     strategy:
       type: Docker
       dockerStrategy:
-        dockerfilePath: "Dockerfile.bulk"
+        dockerfilePath: "Dockerfile.multi"
         from:
           kind: ImageStreamTag
           name: ${BASEBUILDER_IMG_NAME}:${BASEBUILDER_IMG_TAG}

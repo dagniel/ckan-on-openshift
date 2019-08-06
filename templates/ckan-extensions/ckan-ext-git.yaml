@@ -21,13 +21,9 @@ parameters:
     description: The OpenShift Namespace where the resources will be created.
     value: ckan
     required: true
-  - name: OUTPUT_IMG_NAME
+  - name: OUTPUT_IMG
     displayName: ImageStream name for the output image
-    value: ckan
-    required: true
-  - name: OUTPUT_IMG_TAG
-    displayName: Tag name for the output image
-    value: "civity-dev"
+    value: "ckan:git-v1"
     required: true
   - name: APPSRC_REPO_URL
     displayName: Source code repository URL
@@ -37,23 +33,19 @@ parameters:
   - name: APPSRC_REPO_AUTH
     displayName: Source code secret for repository authentication
     description: The referenced OKD secret used to authenticaate to the specified repository
-    value: image-builder-gitlab-auth
+    value:
   - name: APPSRC_REPO_REF
     displayName: Source code repository Reference
     description: >-
       Set this to a branch name, tag or other ref of your repository if you are
       not using the default branch.
-    value: develop
-  - name: BASEBUILDER_IMG_NAME
+    value:
+  - name: BASEBUILDER_IMG
     displayName: Base builder's source image
     description: |-
       Base builder's source image name used to create the app's specific builder
       Must be in the form image:tag
-    value: "ckan"
-    required: true
-  - name: BASEBUILDER_IMG_TAG
-    displayName: Base builder's source image tag
-    value: "ckan-2.8.2"
+    value: "ckan:2.8.2"
     required: true
   - name: CKAN_EXT_SECRET
     displayName: Reference to Secret
@@ -75,10 +67,11 @@ objects:
     namespace: ${NAMESPACE}
   type: Opaque
   stringData:
+    CKAN_EXT_DIR: "my_ckan_ext"
     install_ckan_ext.sh: |-
       # This file will be sourced inside the assemble script, given the right flags
       # Its name must be "install_ckan_ext.sh"
-      # Sould contain operation on the source that was cloned with the S2I procedure
+      # Should contain the install operations on the source that was cloned with the S2I procedure
 
       pip install .
 - apiVersion: v1
@@ -100,18 +93,20 @@ objects:
     output:
       to:
         kind: ImageStreamTag
-        name: ${OUTPUT_IMG_NAME}:${OUTPUT_IMG_TAG}
+        name: ${OUTPUT_IMG}
         namespace: ${NAMESPACE}
     source:
       type: Git
       git:
         ref: ${APPSRC_REPO_REF}
         uri: ${APPSRC_REPO_URL}
-      sourceSecret:
-        name: ${APPSRC_REPO_AUTH}
+# authentication against a private repository
+#      sourceSecret:
+#        name: ${APPSRC_REPO_AUTH}
       secrets:
         - secret:
             name: ${CKAN_EXT_SECRET}
+# for the "source" strategy, the destination directory is the same as the one from where the "assemble" script runs
           destinationDir: ""
     strategy:
       sourceStrategy:
@@ -119,11 +114,17 @@ objects:
           - name: CKAN_IS_EXTENSION
             value: "true"
           - name: CKAN_EXT_DIR
-            value: ckanext-civity
+            valueFrom:
+              secretKeyRef:
+                name: ${CKAN_EXT_SECRET}
+                key: CKAN_EXT_DIR
         from:
-          kind: ImageStreamTag
-          name: ${BASEBUILDER_IMG_NAME}:${BASEBUILDER_IMG_TAG}
-          namespace: ${NAMESPACE}
+          kind: DockerImage
+          name: ${BASEBUILDER_IMG}
+## use this when referencing a local ImageStream
+#          kind: ImageStreamTag
+#          name: ${BASEBUILDER_IMG}
+#          namespace: ${NAMESPACE}
         incremental: true
       type: Source
     successfulBuildsHistoryLimit: 2

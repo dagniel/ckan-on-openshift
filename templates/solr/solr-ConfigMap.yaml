@@ -22,6 +22,8 @@ metadata:
       Mounted under /opt/config
       If found by the ckan-solr-init.sh script is copied and used at startup
 
+      Note: This separate config file is similar in structure to the one inside the template.
+      It is provided as a convenient way to edit and load the configuration settings herein.
   labels:
     ckan.component: solr
   name: solr-conf
