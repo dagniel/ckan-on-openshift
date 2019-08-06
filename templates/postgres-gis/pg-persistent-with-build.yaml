@@ -220,7 +220,7 @@ objects:
   kind: BuildConfig
   metadata:
     annotations:
-      description: First layer build to obtain app's specific builder scripts
+      description: Custom build to create the Openshift specific image
     labels:
       app: ${NAME}
       ckan.component: postgresql
@@ -238,7 +238,7 @@ objects:
       git:
         ref: ${BASEBUILDER_REPO_REF}
         uri: ${BASEBUILDER_REPO_URL}
-      contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
+      contextDir: "${BASEBUILDER_REPO_CONTEXT_DIR}/${BASE_IMG_TAG}"
 #      sourceSecret:
 #        name: ${BASEBUILDER_REPO_AUTH}
     strategy:

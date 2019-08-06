@@ -43,7 +43,7 @@ parameters:
       The existing OpenShift runtime image used to deploy and run the app
       Shold be of the form image:tag
     required: true
-    value: "quay.io/dagniel/ckan.postgres-gis-on-openshift:9.6.12-2.3.1"
+    value: "quay.io/dagniel/ckan.postgres-gis-on-openshift:centos7-9.6.12-2.3.1"
   - name: PG_ENV
     displayName: Reference to Secret holding env vars
     required: true

@@ -858,7 +858,7 @@ objects:
       git:
         ref: "init-dev"
         uri: "https://github.com/dagniel/ckan-on-openshift.git"
-      contextDir: "docker/postgres-gis"
+      contextDir: "docker/postgres-gis/${PG_VERSION}"
 #      sourceSecret:
 #        name: ${BASEBUILDER_REPO_AUTH}
     strategy:

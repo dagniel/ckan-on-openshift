@@ -1,6 +1,6 @@
 NAME=ckan
 NAMESPACE=pub-ckan
-RUNTIME_IMG_NAME="quay.io/dagniel/ckan.postgres-gis-on-openshift:9.6.12-2.3.1"
+RUNTIME_IMG_NAME="quay.io/dagniel/ckan.postgres-gis-on-openshift:centos7-9.6.12-2.3.1"
 PG_ENV=ckan-postgresql-env
 PG_AUTH=ckan-postgresql-auth
 PG_CONF_MAP=ckan-postgresql
