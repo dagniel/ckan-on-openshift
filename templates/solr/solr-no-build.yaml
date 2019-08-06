@@ -1,0 +1,243 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-solr-no-build
+  annotations:
+    description: |-
+      Teplate for deploying the Solr indexing component for ckan
+      Without custom build of image.
+    iconClass: icon-openjdk
+    openshift.io/display-name:  Ckan - Solr component
+    tags: ckan,solr
+    template.openshift.io/long-description: >-
+       Ckan - Solr component
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: RUNTIME_IMG_NAME
+    displayName: Source ImageStream name
+    description: |-
+      The existing OpenShift runtime image used to deploy and run the app
+      Shold be of the form image:tag
+    required: true
+    value: "quay.io/dagniel/ckan.solr-on-openshift:6.6.5"
+  - name: SOLR_RAM_LIMIT
+    displayName: Max ram allocatable for the solr container
+    description: |-
+      Option needed due to java1.8 limitation regarding container memory
+      More at: https://developers.redhat.com/blog/2017/04/04/openjdk-and-containers/
+    value: "1Gi"
+    required: true
+  - name: SOLR_RAM_REQ
+    displayName: Initial ram allocated for the solr container
+    value: "512Mi"
+  - name: SOLR_CPU_REQ
+    displayName: Initial CPU allocated for the solr container
+    value: "100m"
+  - name: SOLR_CPU_LIMIT
+    displayName: CPU limit for the solr container
+    value: "400m"
+  - name: ENV_TZ
+    displayName: Environment for timezone
+    description: |-
+      OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
+      Useful for logging
+    value: "Europe/Amsterdam"
+  - name: SOLR_CONF
+    displayName: Reference to ConfigMap
+    description: COnfigMap that holds config and init files used at runtime.
+    required: true
+    value: solr-conf
+objects:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        description: Exposes and load balances the application pods
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: ${NAME}-solr
+      namespace: ${NAMESPACE}
+    spec:
+      ports:
+      - name: solr
+        port: 8983
+        protocol: TCP
+        targetPort: 8983
+      selector:
+        deploymentconfig: ${NAME}-solr
+      type: ClusterIP
+  - apiVersion: v1
+    kind: DeploymentConfig
+    metadata:
+      annotations:
+        description: Defines how to deploy the application server
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: ${NAME}-solr
+      namespace: ${NAMESPACE}
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 5
+      selector:
+        app: ${NAME}
+      template:
+        metadata:
+          labels:
+            app: ${NAME}
+            ckan.component: solr
+            deploymentconfig: ${NAME}-solr
+        spec:
+          containers:
+          - image: ${RUNTIME_IMG_NAME}
+            imagePullPolicy: Always
+            name: ${NAME}-solr
+            ports:
+            - containerPort: 8983
+              protocol: TCP
+            env:
+              - name: TZ
+                value: ${ENV_TZ}
+              - name: SOLR_RAM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.memory
+            livenessProbe:
+              httpGet:
+                path: /
+                port: 8983
+              initialDelaySeconds: 30
+              timeoutSeconds: 10
+            readinessProbe:
+              httpGet:
+                path: /
+                port: 8983
+              initialDelaySeconds: 30
+              timeoutSeconds: 3
+            resources:
+              limits:
+                cpu: ${SOLR_CPU_LIMIT}
+                memory: ${SOLR_RAM_LIMIT}
+              requests:
+                cpu: ${SOLR_CPU_REQ}
+                memory: ${SOLR_RAM_REQ}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /opt/config
+                name: solr-config
+# in order to use same ConfigMap for both the initialization script and for the optional startup configuration
+# need to define a second mount point(the same ConfigMap is mounted twice)
+              - mountPath: /docker-entrypoint-initdb.d
+                name: solr-init
+          volumes:
+# the volume holds the ckan-solr-init.sh script even though it's not used in here
+          - name: solr-config
+            configMap:
+              defaultMode: 0660
+              optional: true
+              name: ${SOLR_CONF}
+# the volume only holds  the ckan-solr-init.sh script and not the optional startup config
+#  in order to to avoid problematic script executions
+          - name: solr-init
+            configMap:
+              defaultMode: 0770
+              optional: true
+              name: ${SOLR_CONF}
+              items:
+              - key: ckan-solr-init.sh
+                path: ckan-solr-init.sh
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          securityContext: {}
+          terminationGracePeriodSeconds: 30
+          automountServiceAccountToken: false
+      triggers:
+      - type: ConfigChange
+      strategy:
+        type: Rolling
+        activeDeadlineSeconds: 21600
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          maxSurge: 25%
+          maxUnavailable: 0
+          timeoutSeconds: 180
+          updatePeriodSeconds: 1
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      annotations:
+        description: |-
+          Holds configuration and initialization files used to deploy Solr.
+      labels:
+        app: ${NAME}
+        ckan.component: solr
+      name: solr-conf
+      namespace: ${NAMESPACE}
+    data:
+      ckan-solr-init.sh: |-
+        #!/bin/bash
+
+        # if there is a solr.in.sh file mounted in the /opt/config directory use this for starting Solr
+        if [ -s "/opt/config/solr.in.sh" ]; then
+          echo "---> Found user supplied solr.in.sh; Using it to start Solr"
+          rm -f /opt/solr/bin/solr.in.sh
+          cp /opt/config/solr.in.sh /opt/solr/bin/solr.in.sh
+        fi
+
+
+        #need to specify additional JAVA_OPTS to make Java respect container limits
+        #https://docs.okd.io/3.10/dev_guide/application_memory_sizing.html#sizing-openjdk
+        #if java major version is lower than 10, should add the -XX:MaxRAM option
+        java -version > /tmp/jvers 2>&1
+        jvers=$(cat /tmp/jvers | head -1 | cut -d ' ' -f3 | sed 's/\"\([0-9]*\).*/\1/')
+        rm -f /tmp/jvers
+
+        if [ 10 -gt $jvers ]; then
+            if [ -z "$SOLR_RAM_LIMIT" ]; then
+              SOLR_RAM_LIMIT="512Mi"
+              echo "---> using default SOLR_RAM_LIMIT as: $SOLR_RAM_LIMIT"
+            fi
+            #when env variable comes linked to OKD mem limit notation,eg 512M or 512 Mi,
+            #should change it to java size equivalent notation
+            value=$(echo "$SOLR_RAM_LIMIT" | sed 's/\([0-9]*\)[a-zA-Z]*/\1/')
+            suffix=$(echo "$SOLR_RAM_LIMIT" | sed 's/\([0-9]*\)\([a-zA-Z]*\)/\2/')
+
+            #the case where there's no scale (Mi, GI, etc) then the value is in bytes
+            if [ "x"$suffix = "x" ]; then
+                SOLR_RAM_LIMIT=$(awk "BEGIN {print $value/1024/1024}")"m"
+            # if suffix has len=1 => OKD decimal scale; approximate only the top factor
+            elif [ ${#suffix} -eq 1 ]; then
+                SOLR_RAM_LIMIT=$(awk "BEGIN {print $value/1024*1000}")"${suffix:0:1}"
+            # if suffix has len>1 => OKD binary scale
+            else
+                SOLR_RAM_LIMIT=$value"${suffix:0:1}"
+            fi
+
+            echo "---> adding -XX:MaxRAM=$SOLR_RAM_LIMIT option for java version < 10"
+            # if there is an active SOLR_OPTS variable, just append the MaxRam arg
+            # otherwise(default) also add tuning for JVM memory release
+            active_opts=$(sed -n "s/^SOLR_OPTS=\(.*\)\"/\1/p" /opt/solr/bin/solr.in.sh)
+            if [ ${#active_opts} -eq 0 ]; then
+                echo >> /opt/solr/bin/solr.in.sh
+                echo "SOLR_OPTS=\"$SOLR_OPTS -XX:MaxRAM=$SOLR_RAM_LIMIT -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90\"" \
+                >> /opt/solr/bin/solr.in.sh
+            else
+                # for convenience modifies all the occurences
+                sed -i "s/^\(#*\)\(SOLR_OPTS=\)\(.*\)\"/\1\2\3 -XX:MaxRAM=$SOLR_RAM_LIMIT\"/" /opt/solr/bin/solr.in.sh
+            fi
+            active_opts=$(sed -n "s/^SOLR_OPTS=\(.*\)\"/\1/p" /opt/solr/bin/solr.in.sh)
+          echo "---> active SOLR_OPTS: $active_opts"
+        fi

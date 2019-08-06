@@ -1,0 +1,699 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-persistent-with-build
+  annotations:
+    description: |-
+      Teplate for deploying ckan main app.
+      Based on https://github.com/ckan/ckan.git release
+
+      Template for components with persistent storage
+    iconClass: icon-python
+    openshift.io/display-name: Ckan(persistent)
+    tags: ckan,python
+    template.openshift.io/long-description: >-
+      Template for deploying ckan main app.
+      Based on https://github.com/ckan/ckan.git release
+
+      Template for components with persistent storage
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: APPLICATION_HOSTNAME
+    displayName: Application Hostname
+    description: >-
+      The exposed hostname that will route to the ckan service, if left blank
+      a value will be defaulted.
+    value: 'ckan.apps.oshift-pinfold.intra'
+  - name: BASEBUILDER_IMG_NAME
+    displayName: Base builder's source image
+    description: |-
+      Base builder's source image name used to create the app's specific builder
+      Must be in the form image:tag
+    value: "docker.io/centos/python-27-centos7"
+    required: true
+  - name: BASEBUILDER_REPO_URL
+    displayName: Base builder repository URL
+    description: The URL of the repository with builder scripts specific for the app
+    value:
+    required: true
+#  - name: BASEBUILDER_REPO_AUTH
+#    displayName: Base builder Secret for repository authentication
+#    description: The referenced OKD secret used to authenticaate to the specified repository
+#    value: image-builder-gitlab-auth
+  - name: BASEBUILDER_REPO_REF
+    displayName: Base builder repository Reference
+    description: >-
+      Set this to a branch name, tag or other ref of your repository if you are
+      not using the default branch.
+    value: "development"
+  - name: BASEBUILDER_REPO_CONTEXT_DIR
+    displayName: Base builder repository Context Directory
+    description: >-
+      Set this to the relative path to your project if it is not in the root of
+      your repository.
+    value: "builders/ckan/ckan"
+  - name: APPSRC_REPO_URL
+    value: https://github.com/ckan/ckan.git
+    displayName: Source code repository URL
+    description: The URL of the repository with your application source code.
+    required: true
+  - name: APPSRC_REPO_REF
+    displayName: Source code repository Reference
+    description: >-
+      Set this to a branch name, tag or other ref of your repository if you are
+      not using the default branch.
+    value: "ckan-2.8.2"
+  - name: CKAN_ENV
+    displayName: Reference to Secret holding env vars
+    required: true
+    value: ckan-env
+  - name: CKAN_CONF_MAP
+    displayName: Reference to ConfigMap with runtime configuration
+    required: true
+    value: ckan
+  - name: CKAN_PG_ENV
+    displayName: Reference to Secret holding Postgres env vars
+    required: true
+    value: ckan-postgresql-env
+  - name: CKAN_PG_AUTH
+    displayName: Reference to Secret holding Postgres authentication env vars
+    required: true
+    value: ckan-postgresql-auth
+  - name: CKAN_STORAGE_SIZE
+    displayName: Value for the CKAN storage
+    description: -|
+      Value for the PVC that will be created and attached as data storage for the CKAN Pod
+      Should be in the form "xGi"; default 2Gi
+    value: "2Gi"
+  - name: STORAGE_CLASS_NAME
+    displayName: Name of storage-class
+    description: -|
+      Name of the StorageClass that will dynamically provide storage for the claim
+      In the case dynamic provisioning isn't available, should be the empty string ""
+    value: ""
+  - name: ENV_TZ
+    displayName: Environment for timezone
+    description: -|
+      OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
+      Useful for logging
+    value: "Europe/Amsterdam"
+  - name: CKAN_APP_UUID
+    displayName: Unique id needed by CKAN(conf)
+    from: '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+    generate: expression
+    required: true
+  - name: CKAN_BEAKER_SECRET
+    displayName: Secret needed by CKAN(conf)
+    from: '[a-zA-Z0-9]{25}'
+    generate: expression
+    required: true
+objects:
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    annotations:
+        description: |-
+          Environment variables needed to setup and run the ckan container.
+          These need to be synced with the contents of the production.ini ConfigurationMap
+          Currently reference the services/auth from resources in the same project
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    name: ${NAME}-env
+    namespace: ${NAMESPACE}
+  type: Opaque
+  stringData:
+# used to generate container user
+    CONTAINER_USER_NAME: ckan
+# env var for Docker build to install specific postgres client
+    POSTGRES_TOOLS_VERSION: rh-postgresql96
+# used in original Dockerfile; useful???
+#    CKAN_HOME: /opt/app-root/src/ckan
+# used in entrypoint and original Dockerfile; useful??
+    CKAN_CONFIG: /opt/app-root/config
+    CKAN_TEMPLATE_CONFIG: /opt/config
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      description: Keeps track of changes in the builder image for ckan
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    name: ${NAME}-builder
+    namespace: ${NAMESPACE}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      description: Image stream for final ckan component
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: First layer build to obtain app's specific builder scripts
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    name: ${NAME}-builder
+    namespace: ${NAMESPACE}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${NAME}-builder:latest
+        namespace: ${NAMESPACE}
+    runPolicy: Serial
+    source:
+      type: Git
+      git:
+        ref: ${BASEBUILDER_REPO_REF}
+        uri: ${BASEBUILDER_REPO_URL}
+      contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
+#      sourceSecret:
+#        name: ${BASEBUILDER_REPO_AUTH}
+    strategy:
+      type: Docker
+      dockerStrategy:
+        env:
+          - name: PGSQL_SCL
+            valueFrom:
+              secretKeyRef:
+                key: POSTGRES_TOOLS_VERSION
+                name: ${CKAN_ENV}
+        from:
+          kind: DockerImage
+          name: ${BASEBUILDER_IMG_NAME}
+    successfulBuildsHistoryLimit: 2
+    failedBuildsHistoryLimit: 5
+    triggers:
+#not linking the generic builder to the app's builder
+    - type: ConfigChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: S2I build to install and run ckan component
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${NAME}:${APPSRC_REPO_REF}
+        namespace: ${NAMESPACE}
+    source:
+      type: Git
+      git:
+        ref: ${APPSRC_REPO_REF}
+        uri: ${APPSRC_REPO_URL}
+    strategy:
+      sourceStrategy:
+        env:
+          - name: DISABLE_SETUP_PY_PROCESSING
+            value: ""
+          - name: UPGRADE_PIP_TO_LATEST
+            value: "true"
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}-builder:latest
+          namespace: ${NAMESPACE}
+        incremental: true
+      type: Source
+    successfulBuildsHistoryLimit: 2
+    failedBuildsHistoryLimit: 5
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChange: {}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the application server
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 5
+    selector:
+      app: ${NAME}
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          ckan.component: ckan
+          deploymentconfig: ${NAME}
+      spec:
+        containers:
+        - image: null
+          imagePullPolicy: Always
+          name: ${NAME}
+          command:
+            - /bin/bash
+            - '-c'
+            - $STI_SCRIPTS_PATH/run
+          env:
+            - name: TZ
+              value: ${ENV_TZ}
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  key: PG_USER
+                  name: ${CKAN_PG_AUTH}
+            - name: PG_DATASTORE_RO_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATASTORE_RO_PASS
+                  name: ${CKAN_PG_AUTH}
+            - name: PG_DATASTORE_RO_USER
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATASTORE_RO_USER
+                  name: ${CKAN_PG_AUTH}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: PG_PASSWORD
+                  name: ${CKAN_PG_AUTH}
+            - name: PG_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATABASE
+                  name: ${CKAN_PG_ENV}
+            - name: PG_DATASTORE_DB
+              valueFrom:
+                secretKeyRef:
+                  key: PG_DATASTORE_DB
+                  name: ${CKAN_PG_ENV}
+          envFrom:
+            - secretRef:
+                name: ${CKAN_ENV}
+            - configMapRef:
+                name: ${CKAN_CONF_MAP}
+          ports:
+          - containerPort: 5000
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+            requests:
+              cpu: 300m
+              memory: 256Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /opt/app-root/storage
+              name: ckan-storage
+              readOnly: false
+            - mountPath: /ckan-conf-templates
+              name: template-config
+              readOnly: true
+        volumes:
+        - name: ckan-storage
+          persistentVolumeClaim:
+            claimName: ${NAME}-storage
+        - name: template-config
+          configMap:
+            defaultMode: 0440
+            optional: true
+            name: ${CKAN_CONF_MAP}
+            items:
+            - key: ckan.ini
+              path: ckan.ini
+            - key: who.ini
+              path: who.ini
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        automountServiceAccountToken: false
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${NAME}
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}:${APPSRC_REPO_REF}
+          namespace: ${NAMESPACE}
+    strategy:
+      type: Recreate
+      resources: {}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      ckan.component: ckan
+      app: ${NAME}
+    name: ${NAME}-storage
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    dataSource: null
+    resources:
+      requests:
+        storage: ${CKAN_STORAGE_SIZE}
+    storageClassName: ${STORAGE_CLASS_NAME}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      ckan.component: ckan
+      app: ${NAME}
+    name: ${NAME}
+  spec:
+    ports:
+    - name: ckan
+      port: 5000
+      protocol: TCP
+      targetPort: 5000
+    selector:
+      deploymentconfig: ${NAME}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    annotations:
+      openshift.io/host.generated: "true"
+  spec:
+    host: '${APPLICATION_HOSTNAME}'
+    port:
+      targetPort: ckan
+    to:
+      kind: Service
+      name: ${NAME}
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+    annotations:
+        description: |-
+          Holds both key/value pairs that will be injected as environment variables in the running container
+          and the ckan.ini configuration file for ckan
+
+          If in template form (use of $VAR in content), it will be processed on deployment start and the $VARs
+          will be changed with values from the equivalent values from the environment
+          In this case the keys can be used inside the ckan.ini file.
+
+          If in raw form the contents will be used as is
+
+          The switch between template/raw type of processing is done via setting the CKAN_USE_CONF_TEMPLATE variable
+           - "true" -> ckan.ini will be processed as template
+           - empty or other value("false") -> ckan.ini will be copied and used as is
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+  data:
+    CKAN_USE_CONF_TEMPLATE: "true"
+    CKAN_DO_DB_INIT: "true"
+    CKAN__PLUGINS: "stats text_view image_view recline_view datastore datapusher"
+    POSTGRES_HOST: ${NAME}-postgresql.${NAMESPACE}.svc.cluster.local
+    REDIS_HOST: ${NAME}-redis.${NAMESPACE}.svc.cluster.local
+    REDIS_PORT: '6379'
+    REDIS_DB: '1'
+    SOLR_HOST: ${NAME}-solr.${NAMESPACE}.svc.cluster.local
+    SOLR_PORT: '8983'
+    DATAPUSHER_HOST: ${NAME}-datapusher.${NAMESPACE}.svc.cluster.local
+    DATAPUSHER_PORT: '8800'
+    CKAN_SITE_ID: okd-ckan
+    CKAN_SITE_URL: http://${APPLICATION_HOSTNAME}
+    CKAN_STORAGE_PATH: /opt/app-root/storage
+    CKAN_MAX_UPLOAD_SIZE_MB: "30"
+    CKAN_SMTP_MAIL_FROM: ckan@lab-okd.net
+    CKAN_SMTP_PASSWORD: some_password
+    CKAN_SMTP_SERVER: smtp.office365.com:587
+    CKAN_SMTP_STARTTLS: "True"
+    CKAN_SMTP_USER: account@office365.com
+    CKAN_APP_UUID: ${CKAN_APP_UUID}
+    CKAN_BEAKER_SECRET: ${CKAN_BEAKER_SECRET}
+    ckan.ini: |-
+      #
+      # CKAN - Pylons configuration
+      #
+      # These are some of the configuration options available for your CKAN
+      # instance. Check the documentation in 'doc/configuration.rst' or at the
+      # following URL for a description of what they do and the full list of
+      # available options:
+      #
+      # http://docs.ckan.org/en/latest/maintaining/configuration.html
+      #
+      # The %(here)s variable will be replaced with the parent directory of this file
+      #
+
+      [DEFAULT]
+
+      # WARNING: *THIS SETTING MUST BE SET TO FALSE ON A PRODUCTION ENVIRONMENT*
+      debug = false
+
+      [server:main]
+      use = egg:Paste#http
+      host = 0.0.0.0
+      port = 5000
+
+      [app:main]
+      use = egg:ckan
+      full_stack = true
+      cache_dir = /tmp/%(ckan.site_id)s/
+      beaker.session.key = ckan
+
+      # This is the secret token that the beaker library uses to hash the cookie sent
+      # to the client. `paster make-config` generates a unique value for this each
+      # time it generates a config file.
+      beaker.session.secret = $CKAN_BEAKER_SECRET
+
+      # `paster make-config` generates a unique value for this each time it generates
+      # a config file.
+      app_instance_uuid = $CKAN_APP_UUID
+
+      # repoze.who config
+      who.config_file = %(here)s/who.ini
+      who.log_level = warning
+      who.log_file = %(cache_dir)s/who_log.ini
+      # Session timeout (user logged out after period of inactivity, in seconds).
+      # Inactive by default, so the session doesn't expire.
+      # who.timeout = 86400
+
+      ## Database Settings
+      sqlalchemy.url = postgresql://$PG_USER:$PG_PASSWORD@$POSTGRES_HOST/$PG_DATABASE
+
+      ckan.datastore.write_url = postgresql://$PG_USER:$PG_PASSWORD@$POSTGRES_HOST/$PG_DATASTORE_DB
+      ckan.datastore.read_url = postgresql://$PG_DATASTORE_RO_USER:$PG_DATASTORE_RO_PASS@$POSTGRES_HOST/$PG_DATASTORE_DB
+
+      # PostgreSQL' full-text search parameters
+      ckan.datastore.default_fts_lang = english
+      ckan.datastore.default_fts_index_method = gist
+
+
+      ## Site Settings
+
+      ckan.site_url = $CKAN_SITE_URL
+      #ckan.use_pylons_response_cleanup_middleware = true
+
+      ## Authorization Settings
+
+      ckan.auth.anon_create_dataset = false
+      ckan.auth.create_unowned_dataset = false
+      ckan.auth.create_dataset_if_not_in_organization = false
+      ckan.auth.user_create_groups = false
+      ckan.auth.user_create_organizations = false
+      ckan.auth.user_delete_groups = true
+      ckan.auth.user_delete_organizations = true
+      ckan.auth.create_user_via_api = false
+      ckan.auth.create_user_via_web = true
+      ckan.auth.roles_that_cascade_to_sub_groups = admin
+
+
+      ## Search Settings
+
+      ckan.site_id = $CKAN_SITE_ID
+      solr_url = http://$SOLR_HOST:$SOLR_PORT/solr/ckan
+
+
+      ## Redis Settings
+
+      # URL to your Redis instance, including the database to be used.
+      ckan.redis.url = redis://$REDIS_HOST:$REDIS_PORT/$REDIS_DB
+
+
+      ## CORS Settings
+
+      # If cors.origin_allow_all is true, all origins are allowed.
+      # If false, the cors.origin_whitelist is used.
+      # ckan.cors.origin_allow_all = true
+      # cors.origin_whitelist is a space separated list of allowed domains.
+      # ckan.cors.origin_whitelist = http://example1.com http://example2.com
+
+
+      ## Plugins Settings
+
+      # Note: Add ``datastore`` to enable the CKAN DataStore
+      #       Add ``datapusher`` to enable DataPusher
+      #		Add ``resource_proxy`` to enable resorce proxying and get around the
+      #		same origin policy
+      ckan.plugins = $CKAN__PLUGINS
+
+      # Define which views should be created by default
+      # (plugins must be loaded in ckan.plugins)
+      ckan.views.default_views = image_view text_view recline_view
+
+      # Customize which text formats the text_view plugin will show
+      #ckan.preview.json_formats = json
+      #ckan.preview.xml_formats = xml rdf rdf+xml owl+xml atom rss
+      #ckan.preview.text_formats = text plain text/plain
+
+      # Customize which image formats the image_view plugin will show
+      #ckan.preview.image_formats = png jpeg jpg gif
+
+      ## Front-End Settings
+
+      # Uncomment following configuration to enable using of Bootstrap 2
+      #ckan.base_public_folder = public-bs2
+      #ckan.base_templates_folder = templates-bs2
+
+      ckan.site_title = CKAN
+      ckan.site_logo = /base/images/ckan-logo.png
+      ckan.site_description =
+      ckan.favicon = /base/images/ckan.ico
+      ckan.gravatar_default = identicon
+      ckan.preview.direct = png jpg gif
+      ckan.preview.loadable = html htm rdf+xml owl+xml xml n3 n-triples turtle plain atom csv tsv rss txt json
+      ckan.display_timezone = server
+
+      # package_hide_extras = for_search_index_only
+      #package_edit_return_url = http://another.frontend/dataset/<NAME>
+      #package_new_return_url = http://another.frontend/dataset/<NAME>
+      #ckan.recaptcha.publickey =
+      #ckan.recaptcha.privatekey =
+      #licenses_group_url = http://licenses.opendefinition.org/licenses/groups/ckan.json
+      # ckan.template_footer_end =
+
+
+      ## Internationalisation Settings
+      ckan.locale_default = en
+      ckan.locale_order = en pt_BR ja it cs_CZ ca es fr el sv sr sr@latin no sk fi ru de pl nl bg ko_KR hu sa sl lv
+      ckan.locales_offered =
+      ckan.locales_filtered_out = en_GB
+
+      ## Feeds Settings
+
+      ckan.feeds.authority_name =
+      ckan.feeds.date =
+      ckan.feeds.author_name =
+      ckan.feeds.author_link =
+
+      ## Storage Settings
+
+      ckan.storage_path = $CKAN_STORAGE_PATH
+      ckan.max_resource_size = $CKAN_MAX_UPLOAD_SIZE_MB
+      #ckan.max_image_size = 2
+
+      ## Datapusher settings
+
+      # Make sure you have set up the DataStore
+
+      #ckan.datapusher.formats = csv xls xlsx tsv application/csv application/vnd.ms-excel application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      ckan.datapusher.url = http://$DATAPUSHER_HOST:$DATAPUSHER_PORT
+      #ckan.datapusher.assume_task_stale_after = 3600
+
+      # Resource Proxy settings
+      # Preview size limit, default: 1MB
+      #ckan.resource_proxy.max_file_size = 1048576
+      # Size of chunks to read/write.
+      #ckan.resource_proxy.chunk_size = 4096
+
+      ## Activity Streams Settings
+
+      #ckan.activity_streams_enabled = true
+      #ckan.activity_list_limit = 31
+      #ckan.activity_streams_email_notifications = true
+      #ckan.email_notifications_since = 2 days
+      ckan.hide_activity_from_users = %(ckan.site_id)s
+
+
+      ## Email settings
+
+      #email_to = errors@example.com
+      #error_email_from = ckan-errors@example.com
+      smtp.server = $CKAN_SMTP_SERVER
+      smtp.starttls = $CKAN_SMTP_STARTTLS
+      smtp.user = $CKAN_SMTP_USER
+      smtp.password = $CKAN_SMTP_PASSWORD
+      smtp.mail_from = $CKAN_SMTP_MAIL_FROM
+
+      ## Logging configuration
+      [loggers]
+      keys = root, ckan, ckanext
+
+      [handlers]
+      keys = console
+
+      [formatters]
+      keys = generic
+
+      [logger_root]
+      level = WARNING
+      handlers = console
+
+      [logger_ckan]
+      level = INFO
+      handlers = console
+      qualname = ckan
+      propagate = 0
+
+      [logger_ckanext]
+      level = DEBUG
+      handlers = console
+      qualname = ckanext
+      propagate = 0
+
+      [handler_console]
+      class = StreamHandler
+      args = (sys.stderr,)
+      level = NOTSET
+      formatter = generic
+
+      [formatter_generic]
+      format = %(asctime)s %(levelname)-5.5s [%(name)s] %(message)s
+

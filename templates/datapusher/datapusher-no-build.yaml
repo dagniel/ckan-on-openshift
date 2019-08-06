@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-datapusher-no-build
+  annotations:
+    description: |-
+      Teplate for deploying the Datapusher component for ckan
+    iconClass: icon-python
+    openshift.io/display-name: Ckan - Datapusher component
+    tags: ckan,datapusher,python
+    template.openshift.io/long-description: >-
+      Ckan - Datapusher component
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: RUNTIME_IMG_NAME
+    displayName: Source ImageStream name
+    description: |-
+      The existing OpenShift runtime image used to deploy and run the app
+      Shold be of the form image:tag
+    required: true
+    value: "quay.io/dagniel/ckan.datapusher-on-openshift:0.0.15"
+  - name: ENV_TZ
+    displayName: Environment for timezone
+    description: -|
+      OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
+      Useful for logging
+    value: "Europe/Amsterdam"
+  - name: DATAPUSHER_RAM_LIMIT
+    displayName: Max ram allocatable for the Datapusher container
+    value: "256Mi"
+    required: true
+  - name: DATAPUSHER_RAM_REQ
+    displayName: Initial ram allocated for the Datapusher container
+    value: "64Mi"
+  - name: DATAPUSHER_CPU_REQ
+    displayName: Initial CPU allocated for the Datapusher container
+    value: "100m"
+  - name: DATAPUSHER_CPU_LIMIT
+    displayName: CPU limit for the Datapusher container
+    value: "300m"
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the application server
+    labels:
+      app: ${NAME}
+      ckan.component: datapusher
+    name: ${NAME}-datapusher
+    namespace: ${NAMESPACE}
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 5
+    selector:
+      app: ${NAME}
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          ckan.component: datapusher
+          deploymentconfig: ${NAME}-datapusher
+      spec:
+        containers:
+        - image: ${RUNTIME_IMG_NAME}
+          imagePullPolicy: Always
+          name: ${NAME}-datapusher
+          command:
+            - /bin/bash
+            - '-c'
+            - |
+              echo -e "#!"/"bin"/"bash\npython $HOME/datapusher/main.py $HOME/deployment/datapusher_settings.py\n" > $HOME/app.sh && \
+              chmod ug+rwx $HOME/app.sh && \
+              $STI_SCRIPTS_PATH/run
+          env:
+            - name: TZ
+              value: ${ENV_TZ}
+          ports:
+          - containerPort: 8800
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8800
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8800
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: ${DATAPUSHER_CPU_LIMIT}
+              memory: ${DATAPUSHER_RAM_LIMIT}
+            requests:
+              cpu: ${DATAPUSHER_CPU_REQ}
+              memory: ${DATAPUSHER_RAM_REQ}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        automountServiceAccountToken: false
+    triggers:
+    - type: ConfigChange
+    strategy:
+      type: Rolling
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 0
+        timeoutSeconds: 180
+        updatePeriodSeconds: 1
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      ckan.component: datapusher
+      app: ${NAME}
+    name: ${NAME}-datapusher
+  spec:
+    ports:
+    - name: datapusher
+      port: 8800
+      protocol: TCP
+      targetPort: 8800
+    selector:
+      deploymentconfig: ${NAME}-datapusher

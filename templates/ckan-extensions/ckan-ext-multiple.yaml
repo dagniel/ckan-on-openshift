@@ -1,0 +1,224 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-ext-multiple
+  annotations:
+    description: |-
+      Template for deploying CKAN extensions via pip install from PyPi/Docker build
+    iconClass: icon-python
+    openshift.io/display-name: Ckan
+    tags: ckan,python,ckan-ext
+    template.openshift.io/long-description: >-
+      Template for deploying CKAN extensions via pip install from PyPi/Docker build
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: OUTPUT_IMG
+    displayName: ImageStream name for the output image
+    value: "ckan:multi-v2"
+    required: true
+  - name: BASEBUILDER_IMG
+    displayName: Base builder's source image
+    description: |-
+      Base builder's source image name used to create the app's specific builder
+      Must be in the form image:tag
+    value: "quay.io/dagniel/ckan-on-openshift:2.8.2"
+    required: true
+  - name: BASEBUILDER_REPO_URL
+    displayName: Base builder repository URL
+    description: The URL of the repository with builder scripts specific for the app
+    value:
+    required: true
+  - name: BASEBUILDER_REPO_AUTH
+    displayName: Base builder Secret for repository authentication
+    description: The referenced OKD secret used to authenticaate to the specified repository
+    value:
+  - name: BASEBUILDER_REPO_REF
+    displayName: Base builder repository Reference
+    description: >-
+      Set this to a branch name, tag or other ref of your repository if you are
+      not using the default branch.
+    value: "development"
+  - name: BASEBUILDER_REPO_CONTEXT_DIR
+    displayName: Base builder repository Context Directory
+    description: >-
+      Set this to the relative path to your project if it is not in the root of
+      your repository.
+    value: "docker/ckan-extensions/multiple"
+  - name: BASEBUILDER_REPO_DOCKERFILE
+    displayName: Base builder repository's Dockerfile
+    description: >-
+      Set this to the path of the Dockerfile, relative to the context directory, used to build the extension(s)
+    value: "Dockerfile"
+  - name: CKAN_EXT_SECRET
+    displayName: Reference to secret holding custom install process for CKAN extensions
+    description: |-
+      Reference to Secret object holding the script with the custom install process for CKAN extension(s)
+      It should contain at least a key/filename called "ckan_ext_install.sh"
+      Could conatain private keys to access private repositories via ssh
+    value: ckan-ext-custom
+    required: true
+objects:
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: Docker build to add specified extensions to a CKAN image
+    labels:
+      app: ${NAME}
+      ckan.component: ckan-ext
+    name: ${NAME}-ext-multiple
+    namespace: ${NAMESPACE}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${OUTPUT_IMG}
+        namespace: ${NAMESPACE}
+    runPolicy: Serial
+    source:
+      type: Git
+      git:
+        ref: ${BASEBUILDER_REPO_REF}
+        uri: ${BASEBUILDER_REPO_URL}
+      contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
+# authentication against a private repository
+#      sourceSecret:
+#        name: ${BASEBUILDER_REPO_AUTH}
+      secrets:
+        - secret:
+            name: ${CKAN_EXT_SECRET}
+# for the Docker build strategy, the secret is placed in the current context dir
+# it is copied by the Dockerfile's COPY instruction
+          destinationDir: ""
+    strategy:
+      type: Docker
+      dockerStrategy:
+        dockerfilePath: "${BASEBUILDER_REPO_DOCKERFILE}"
+        from:
+          kind: DockerImage
+          name: ${BASEBUILDER_IMG}
+## use this when referencing a local ImageStream
+#          kind: ImageStreamTag
+#          name: ${BASEBUILDER_IMG}
+#          namespace: ${NAMESPACE}
+    successfulBuildsHistoryLimit: 2
+    failedBuildsHistoryLimit: 5
+    triggers:
+#not linking the generic builder to the app's builder
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: ${NAME}-ext-custom
+    namespace: ${NAMESPACE}
+    annotations:
+      description: |-
+        bash script to provide complete procedure for insallation of multiple CKAN extensions
+        Optionally: other files that are used by the main install script/process
+    labels:
+      ckan.component: ckan-ext
+      app: ${NAME}
+  type: Opaque
+  stringData:
+    install_ckan_ext.sh: |-
+      #!/bin/bash
+
+      # This script is called inside the DOcker build procedure
+      # It will be executed in the home/root directory of the virtual environment which is $APP_ROOT/src
+      # The environment is activated
+      # The $APP_ROOT/src folder contains at least the "ckan/" folder where the base CKAN is installed
+      #
+      # The script is ran by user id 1001 with temporary name "default" -> this ensures git clone works
+      # Invoke git clone while keeping in mind the current location / root for CKAN: $APP_ROOT/src
+      #
+      # Options described below are relative to the ones in the CKAN docs for adding extensions
+      # https://docs.ckan.org/en/2.8/maintaining/installing/install-from-docker-compose.html#add-extensions
+      #
+      # In the case of private repos accessed via private ssh-keys that are also injected via the Secret,
+      # we should define/keep the "setup_private_key" and "remove_private_key" functions below and
+      # the process should be:
+      #     setup_private_key /path/to/private_keyfile
+      #     clone source/repo in desired location
+      #     install extension
+      #     remove_private_key /path/to/private_keyfile
+      # this ensures that no sensitive information is kept inside the running container
+
+      function setup_private_key() {
+        echo "---> Setting up 0400 permissions for the private key file $1"
+        chmod 400 "$1"
+      }
+
+      function remove_private_key() {
+        echo "---> Removing private key file $1"
+        rm -f "$1"
+      }
+
+      set -e
+
+      # Option 3: Pip install from PyPi (multiple extensions)
+
+      CKAN_EXT_LIST="ckanext-geoview ckanext-deadoralive ckanext-eurovoc"
+      pip install ${CKAN_EXT_LIST}
+
+      # Option 2: Pip install from GitHub
+
+      pip install -e "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-showcase"
+
+      # Option 1: From source
+      # 1.a. public repository
+
+      git clone https://github.com/ckan/ckanext-mapviews.git
+      cd ckanext-mapviews
+      python setup.py install
+      cd ..
+
+      # 1.b private repository with username and password
+
+      user="myuser"
+      pass="mypass"
+      repo_host="gitlab.myentity.net"
+      repo="Project/My_CKAN_ext.git"
+      git clone https://$user:$pass@$repo_host/$repo
+      cd ckanext-civity
+      git checkout develop
+      git pull
+      pip install .
+      cd ..
+
+      # 1.c private repo with(password-less) ssh-key
+      # need to setup the private ssh-key injected from the Secret
+      # use of ssh-agent to work with temporary private ssh-keys
+
+      repo_host="gitlab.myentity.net"
+      repo="Project/My_CKAN_ext.git"
+
+      setup_private_key "$APP_ROOT/config/git_priv_key1"
+      # !!! the second command is needed in order for the git-ssh auth to function!!!
+      #   its purpuse is to add the "StrictHostKeyChecking=no" option by doing a connection test
+      ssh-agent bash -c "ssh-add $APP_ROOT/config/git_priv_key1; \
+        ssh -o StrictHostKeyChecking=no -T git@$repo_host; \
+        git clone git@$repo_host$repo alt-ckanext-civity"
+      cd alt-ckanext-civity
+      git checkout develop
+      ssh-agent bash -c "ssh-add $APP_ROOT/config/git_priv_key1; \
+        ssh -o StrictHostKeyChecking=no -T git@$repo_host; \
+        git pull"
+      pip install .
+      remove_private_key "$APP_ROOT/config/git_priv_key1"
+      cd ..
+    git_priv_key1: |-
+      -----BEGIN RSA PRIVATE KEY-----
+      MII.........
+      ..........
+      -----END RSA PRIVATE KEY-----
+
+

@@ -1,0 +1,7 @@
+NAME=ckan
+NAMESPACE=pub-ckan
+OUTPUT_IMG="ckan:git-v1"
+APPSRC_REPO_URL=https://github.com/ckan/ckanext-mapviews.git
+APPSRC_REPO_REF=""
+BASEBUILDER_IMG=quay.io/dagniel/ckan-on-openshift:2.8.2
+CKAN_EXT_SECRET=ckan-ext-git

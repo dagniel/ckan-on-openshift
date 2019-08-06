@@ -1,0 +1,11 @@
+NAME=ckan
+NAMESPACE=pub-ckan
+CKAN_EXT_LIST="ckanext-geoview ckanext-deadoralive ckanext-eurovoc"
+OUTPUT_IMG=ckan:pip-v1
+# these values need to be customized only when using a local/private imageStream and repository as base for te build
+BASEBUILDER_IMG=quay.io/dagniel/ckan-on-openshift:2.8.2
+BASEBUILDER_REPO_URL=https://github.com/dagniel/ckan-on-openshift.git
+#BASEBUILDER_REPO_AUTH=
+BASEBUILDER_REPO_REF="init-dev"
+BASEBUILDER_REPO_CONTEXT_DIR="docker/ckan-extensions/pip"
+BASEBUILDER_REPO_DOCKERFILE="Dockerfile"
