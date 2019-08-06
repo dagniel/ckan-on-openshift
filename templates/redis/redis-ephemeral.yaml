@@ -21,10 +21,6 @@ parameters:
     description: The OpenShift Namespace where the resources will be created.
     value: ckan
     required: true
-  - name: RUNTIME_IMG_NAME
-    description: Redis image to use
-    required: true
-    value: "centos/redis-32-centos7:3.2"
   - name: REDIS_CONF_MAP
     value: redis-config
     description: Reference to ConfigMap holding Redis properties
@@ -37,9 +33,6 @@ parameters:
     value: "Europe/Amsterdam"
   - name: REDIS_RAM_LIMIT
     displayName: Max ram allocatable for the REDIS container
-    description: |-
-      Option needed due to java1.8 limitation regarding container memory
-      More at: https://developers.redhat.com/blog/2017/04/04/openjdk-and-containers/
     value: "1Gi"
     required: true
   - name: REDIS_RAM_REQ
@@ -83,7 +76,7 @@ objects:
           - "no"
           command:
           - /opt/rh/rh-redis32/root/usr/bin/redis-server
-          image: ${RUNTIME_IMG_NAME}
+          image: "centos/redis-32-centos7:3.2"
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ

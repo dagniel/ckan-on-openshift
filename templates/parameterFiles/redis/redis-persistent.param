@@ -1,6 +1,5 @@
 NAME=ckan-persist
 NAMESPACE=pub-ckan
-RUNTIME_IMG_NAME="centos/redis-32-centos7:3.2"
 REDIS_CONF_MAP=ckan-redis
 REDIS_STORAGE_SIZE=1Gi
 STORAGE_CLASS_NAME=""
