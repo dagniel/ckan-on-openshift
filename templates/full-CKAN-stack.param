@@ -1,1 +1,8 @@
 # can change the desired Template parameters here
+NAME=ckan
+NAMESPACE=sec-ckan
+APPLICATION_HOSTNAME='sec-ckan.apps.oshift-pinfold.intra'
+CKAN_VERSION="ckan-2.8.2"
+SOLR_VERSION="6.6.5"
+DATAPUSHER_VERSION="0.0.15"
+PG_VERSION="centos7-9.6.14-2.4.1"
