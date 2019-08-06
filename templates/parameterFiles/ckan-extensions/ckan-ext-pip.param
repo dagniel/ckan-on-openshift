@@ -6,6 +6,6 @@ OUTPUT_IMG=ckan:pip-v1
 BASEBUILDER_IMG=quay.io/dagniel/ckan-on-openshift:2.8.2
 BASEBUILDER_REPO_URL=https://github.com/dagniel/ckan-on-openshift.git
 #BASEBUILDER_REPO_AUTH=
-BASEBUILDER_REPO_REF="init-dev"
+BASEBUILDER_REPO_REF="master"
 BASEBUILDER_REPO_CONTEXT_DIR="docker/ckan-extensions/pip"
 BASEBUILDER_REPO_DOCKERFILE="Dockerfile"
