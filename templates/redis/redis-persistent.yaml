@@ -1,0 +1,222 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: ckan-redis-persistent
+  annotations:
+    description: |-
+      Teplate for deploying the Redis DB component for ckan
+      Template for components with persistent storage
+    iconClass: icon-redis
+    openshift.io/display-name: Ckan - Redis(persistent) component
+    tags: ckan,redis
+    template.openshift.io/long-description: >-
+      Ckan - Redis(persistent) component
+parameters:
+  - name: NAME
+    displayName: Application name
+    description: The name assigned to all of the frontend objects defined in this template.
+    value: ckan
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: The OpenShift Namespace where the resources will be created.
+    value: ckan
+    required: true
+  - name: REDIS_CONF_MAP
+    value: redis-config
+    description: "Reference to ConfigMap holding Redis properties"
+    required: true
+  - name: REDIS_STORAGE_SIZE
+    displayName: Value for the Redis storage
+    description: -|
+      Value for the PVC that will be created and attached as storage for the Redis Pod
+      Should be in the form "xGi"; default 2Gi
+    value: "2Gi"
+  - name: STORAGE_CLASS_NAME
+    displayName: Name of storage-class
+    description: -|
+      Name of the StorageClass that will dynamically provide storage for the claim
+      In the case dynamic provisioning isn't available, should be the empty string ""
+    value: ""
+  - name: ENV_TZ
+    displayName: Environment for timezone
+    description: |-
+      OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
+      Useful for logging
+    value: "Europe/Amsterdam"
+  - name: REDIS_RAM_LIMIT
+    displayName: Max ram allocatable for the REDIS container
+    value: "1Gi"
+    required: true
+  - name: REDIS_RAM_REQ
+    displayName: Initial ram allocated for the REDIS container
+    value: "256Mi"
+  - name: REDIS_CPU_REQ
+    displayName: Initial CPU allocated for the REDIS container
+    value: "100m"
+  - name: REDIS_CPU_LIMIT
+    displayName: CPU limit for the REDIS container
+    value: "400m"
+objects:
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      ckan.component: redis
+      app: ${NAME}
+    name: ${NAME}-redis
+    namespace: ${NAMESPACE}
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: ${NAME}-redis
+    strategy:
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          ckan.component: redis
+          app: ${NAME}
+          deploymentconfig: ${NAME}-redis
+      spec:
+        containers:
+        - name: ${NAME}-redis
+          args:
+          - /etc/redis.d/redis.conf
+          - --daemonize
+          - "no"
+          command:
+          - /opt/rh/rh-redis32/root/usr/bin/redis-server
+          env:
+            - name: TZ
+              value: ${ENV_TZ}
+          image: "centos/redis-32-centos7:3.2"
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          readinessProbe:
+            exec:
+              command:
+              - container-entrypoint
+              - bash
+              - -c
+              - redis-cli set liveness-probe "`date`" | grep OK
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: "${REDIS_CPU_LIMIT}"
+              memory: "${REDIS_RAM_LIMIT}"
+            requests:
+              cpu: "${REDIS_CPU_REQ}"
+              memory: "${REDIS_RAM_REQ}"
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/lib/redis/data
+            name: redis-storage
+          - mountPath: /etc/redis.d/
+            name: ${REDIS_CONF_MAP}
+        volumes:
+        - name: redis-storage
+          persistentVolumeClaim:
+            claimName: ${NAME}-redis-storage
+        - name: ${REDIS_CONF_MAP}
+          configMap:
+            items:
+            - key: redis.conf
+              path: redis.conf
+            name: ${REDIS_CONF_MAP}
+    test: false
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    labels:
+      ckan.component: redis
+      app: ${NAME}
+    name: ${NAME}-redis
+  data:
+    redis.conf: |
+      protected-mode no
+
+      port 6379
+
+      timeout 0
+      tcp-keepalive 300
+
+      daemonize no
+      supervised no
+
+      loglevel notice
+
+      databases 16
+
+      save 900 1
+      save 300 10
+      save 60 10000
+
+      stop-writes-on-bgsave-error yes
+
+      rdbcompression yes
+      rdbchecksum yes
+
+      dbfilename dump.rdb
+
+      slave-serve-stale-data yes
+      slave-read-only yes
+
+      repl-diskless-sync no
+      repl-disable-tcp-nodelay no
+
+      appendonly yes
+      appendfilename "appendonly.aof"
+      appendfsync everysec
+      no-appendfsync-on-rewrite no
+      auto-aof-rewrite-percentage 100
+      auto-aof-rewrite-min-size 64mb
+      aof-load-truncated yes
+
+      lua-time-limit 5000
+
+      activerehashing no
+
+      aof-rewrite-incremental-fsync yes
+      dir /var/lib/redis/data
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: null
+    labels:
+      ckan.component: redis
+      app: ${NAME}
+    name: ${NAME}-redis
+  spec:
+    ports:
+    - name: redis
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    selector:
+      deploymentconfig: ${NAME}-redis
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      ckan.component: redis
+      app: ${NAME}
+    name: ${NAME}-redis-storage
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    dataSource: null
+    resources:
+      requests:
+        storage: ${REDIS_STORAGE_SIZE}
+    storageClassName: ${STORAGE_CLASS_NAME}

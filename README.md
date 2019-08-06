@@ -1,6 +1,5 @@
 # ckan-on-openshift
 CKAN deployment configuration for Openshift
-=======
 
 ## CKAN 
 
@@ -50,6 +49,23 @@ official documentation: https://docs.ckan.org/en/2.8/maintaining/installing/inst
 
 ### CKAN extension(s) via `pip`
 
+#### Example (usage)
+In order to add the `ckanext-geoview` and `ckanext-deadoralive` extensions:
+- *(optional)* create a local ImageStream to hold your new image
+- edit the `ckan-ext-pip` `BuildConfig` and modify `CKAN_EXT_LIST="ckanext-geoview ckanext-deadoralive"`
+- build the new image
+	- (optional) when using a local image as base for the build you should also modify the strategy as noted
+	inside the `templates/ckan-extensions/ckan-ext-pip.yaml` file
+- edit the ConfigMap holding the `ckan.ini` configuration file and append the plugin line 
+`ckan.plugins = ... resource_proxy geo_view deadoralive`
+- *(optional)* edit other configuration such as flags for template processing and/or Datastore initialization and 
+other custom configuration
+- edit/create the DeploymentConfig for ckan and point to the newly created ImageStream tag
+- the new deployment should now be using the new image with CKAN + extensions and start based on the new `ckan.ini` file 
+from the ConfigMap
+
+#### Description
+=======
 In order to add one or more CKAN extensions that are available on python's package repository, a new image must be build.
 - starting from the base image of CKAN or from an image that has CKAN installed on it(and possibly other extensions)
 - either using the Dockerfile from this repository(under `docker/ckan-ext/pip`) or a similar one
@@ -65,6 +81,27 @@ by using the `oc` client (`oc edit bc/ckan-ext-pip`)
 
 ### CKAN extension via `git`
 
+#### Example (usage)
+In order to add the `ckanext-mapviews` extension:
+- *(optional)* create a local ImageStream to hold your new image
+- edit/create the `ckan-ext-git` `Secret` and add/modify 
+	```
+	CKAN_EXT_DIR: "ckanext-mapviews"
+	install_ckan_ext.sh: |-
+    python setup.py install
+	```
+- build the new image
+	- (optional) when using a local image as base for the build you should also modify the strategy as noted
+	inside the `templates/ckan-extensions/ckan-ext-git.yaml` file
+- edit the ConfigMap holding the `ckan.ini` configuration file and append the plugin line 
+`ckan.plugins = ... navigablemap` and/or `choroplethmap`
+- *(optional)* edit other configuration such as flags for template processing and/or Datastore initialization and 
+other custom configuration
+- edit/create the DeploymentConfig for ckan and point to the newly created ImageStream tag
+- the new deployment should now be using the new image with CKAN + extensions and start based on the new `ckan.ini` file 
+from the ConfigMap
+
+#### Description
 Adding a single extension via `git` is similar to the actual build process of CKAN itself and it uses the `s2i` 
 functionality of Openshift.
 As a result only single extensions can be added at a time.
@@ -83,6 +120,64 @@ The contents of the `Secret` are:
 - `CKAN_EXT_DIR` holding the directory where the extension will be installed
 - `install_ckan_ext.sh` script that should contain the install operations on the extension's source code 
 
+
+### CKAN multiple extensions
+
+#### Example (usage)
+In order to add the `ckanext-geoview`, `ckanext-showcase`, `ckanext-mapviews` and a `custom_ckan_ext` extension from
+a private repository accessible via key-pair:
+- *(optional)* create a local ImageStream to hold your new image
+- edit/create the `ckan-ext-multiple` `Secret` and add/modify 
+	```
+	install_ckan_ext.sh: |-
+    #!/bin/bash
+
+    CKAN_EXT_LIST="ckanext-geoview"
+    pip install ${CKAN_EXT_LIST}
+
+    pip install -e "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-showcase"
+
+    git clone https://github.com/ckan/ckanext-mapviews.git
+    cd ckanext-mapviews
+    python setup.py install
+    cd ..
+
+    repo_host="gitlab.myentity.net"
+    repo="Project/custom_ckan_ext.git"
+
+    setup_private_key "$APP_ROOT/config/git_priv_key1"
+    ssh-agent bash -c "ssh-add $APP_ROOT/config/git_priv_key1; \
+      ssh -o StrictHostKeyChecking=no -T git@$repo_host; \
+      git clone git@$repo_host$repo custom_ckan_ext"
+    cd custom_ckan_ext
+    git checkout branch_name
+    ssh-agent bash -c "ssh-add $APP_ROOT/config/git_priv_key1; \
+      ssh -o StrictHostKeyChecking=no -T git@$repo_host; \
+      git pull"
+    
+    #pip install . or other means to install the custom extension
+    
+    remove_private_key "$APP_ROOT/config/git_priv_key1"
+    cd ..
+  git_priv_key1: |-
+    -----BEGIN RSA PRIVATE KEY-----
+    MII.........
+    ..........
+    -----END RSA PRIVATE KEY-----
+	```
+	- *Note*: more info about the file can be found in the `templates/ckan-extensions/ckan-ext-multiple-Secret.yaml` file 
+	inside this repo
+- build the new image
+	- (optional) when using a local image as base for the build you should also modify the strategy as noted
+	inside the `templates/ckan-extensions/ckan-ext-multiple.yaml` file
+- edit the ConfigMap holding the `ckan.ini` configuration file and append the plugin line 
+`ckan.plugins = ... resource_proxy geo_view showcase navigablemap` and the suitable configuration for 
+the`custom_ckan_ext` extension
+- *(optional)* edit other configuration such as flags for template processing and/or Datastore initialization and 
+other custom configuration
+- edit/create the DeploymentConfig for ckan and point to the newly created ImageStream tag
+- the new deployment should now be using the new image with CKAN + extensions and start based on the new `ckan.ini` file 
+from the ConfigMap
 
 ## Solr
 Images are found at https://quay.io/repository/dagniel/ckan.solr-on-openshift<br>
@@ -114,6 +209,10 @@ of app specific configuration depending on environment.
 
 The `Secret` objects define environment variables split between env-specific and authorization/identity.
 
+- the authorization/identity users and passwords are generated by the initial creation of the Openshift template
+from random expressions; as all data is kept in the Secrets there is no need to regenerate them twice
+
+
 The `ConfigMap`, containing the `setup.sql` script ran at initialization, is customized for CKAN.<br>
 It both initializes the needed extensions and creates the Datastore structure (DB,user, pass) needed by CKAN. 
 
@@ -125,8 +224,10 @@ It both initializes the needed extensions and creates the Datastore structure (D
 - decouple postgres-gis deployment from CKAN-specific datastore initialization
 - extra env vars: (custom)container ports
 - refactor builder dir structure for postgres-gis
+
 - mention: all current config for custom builds is done based on publicly acessibly repos; for private repos the BuildConfigs 
 must be customized
 - mention: for postgres users and passwords are generated from template's params by using expressions
+
 - patch images to solve security issues found by quay.io 
 

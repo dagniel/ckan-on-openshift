@@ -1,0 +1,14 @@
+NAME=ckan-persist
+NAMESPACE=pub-ckan
+BASE_IMG_NAME="docker.io/crunchydata/crunchy-postgres-gis"
+BASE_IMG_TAG="centos7-9.6.12-2.3.1"
+BASEBUILDER_REPO_URL=https://github.com/dagniel/ckan-on-openshift.git
+BASEBUILDER_REPO_REF=""
+BASEBUILDER_REPO_CONTEXT_DIR="docker/postgres-gis"
+PG_ENV=ckan-postgresql-env
+PG_AUTH=ckan-postgresql-auth
+PG_CONF_MAP=ckan-postgresql
+PG_PRIMARY_PORT='5432'
+POSTGRES_STORAGE_SIZE="2Gi"
+STORAGE_CLASS_NAME=""
+ENV_TZ="Europe/Amsterdam"

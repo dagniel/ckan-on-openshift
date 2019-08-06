@@ -1,0 +1,105 @@
+#!/bin/bash
+
+#################### Custom assemble script from original sclorg/python27 ###########################
+#
+# original: https://github.com/sclorg/s2i-python-container/blob/master/2.7/s2i/bin/assemble
+#
+# kept the original code for pipenv...
+# modified to suit the CKAN installation
+# modified to supply a generic way of installing CKAN git extensions with sourcing
+# the actual pip/python commands needed for installation via injected script
+######################################################################################################
+
+function virtualenv_bin() {
+  if head "/etc/redhat-release" | grep -q "^CentOS Linux release 7" || \
+     head "/etc/redhat-release" | grep -q "^Red Hat Enterprise Linux\( Server\)\? release 7" || \
+     head "/etc/redhat-release" | grep -q "^Fedora release 29 \(Twenty Nine\)\?"; then
+    virtualenv $1
+  else
+    virtualenv-${PYTHON_VERSION} $1
+  fi
+}
+
+# Install pipenv to the separate virtualenv to isolate it
+# from system Python packages and packages in the main
+# virtualenv. Executable is simlinked into ~/.local/bin
+# to be accessible. This approach is inspired by pipsi
+# (pip script installer).
+function install_pipenv() {
+  echo "---> Installing pipenv packaging tool ..."
+  pip install -U virtualenv
+  VENV_DIR=$HOME/.local/venvs/pipenv
+  virtualenv_bin "$VENV_DIR"
+  $VENV_DIR/bin/pip --isolated install -U pipenv
+  mkdir -p $HOME/.local/bin
+  ln -s $VENV_DIR/bin/pipenv $HOME/.local/bin/pipenv
+}
+
+set -e
+
+shopt -s dotglob
+
+# if using s2i to install an extension, assume ckan is already present in the base image
+# install extension from the cloned source and exit
+if [ -n "$CKAN_IS_EXTENSION" ] && [ "$CKAN_IS_EXTENSION" = "true" ]; then
+	# this should be present on env as a specific location to create under /opt/app-root/src/
+	CKAN_EXT_DIR=${CKAN_EXT_DIR:-"ckan-default-ext"}
+	if [ ! -s "install_ckan_ext.sh" ]; then
+		echo "---> install_ckan_ext.sh does not exist; Aborting"
+		exit 1
+	fi
+	echo "---> Installing extension in $APP_ROOT/src/$CKAN_EXT_DIR using the supplied install_ckan_ext.sh"
+	mkdir -p "$APP_ROOT/src/$CKAN_EXT_DIR"
+	mv /tmp/src/* $APP_ROOT/src/$CKAN_EXT_DIR
+	# get the current dir, where the install_ckan_ext.sh file is injected via Secret
+	script_dir="$PWD"
+	pushd "$APP_ROOT/src/$CKAN_EXT_DIR" > /dev/null
+	source "$script_dir/install_ckan_ext.sh"
+	popd > /dev/null
+	exit 0
+fi
+
+echo "---> Installing application source in $APP_ROOT/src/ckan..."
+mkdir -p "$APP_ROOT/src/ckan"
+mv /tmp/src/* "$APP_ROOT/src/ckan"
+
+pushd "$APP_ROOT/src/ckan" > /dev/null
+. $APP_ROOT/bin/activate
+
+if [[ ! -z "$UPGRADE_PIP_TO_LATEST" || ! -z "$ENABLE_PIPENV" ]]; then
+  echo "---> Upgrading pip and wheel to latest version ..."
+  pip install -U pip wheel
+  if [[ -f requirement-setuptools.txt ]]; then
+    echo "---> Upgrading setuptools to version specified in requirement-setuptools.txt"
+    pip install --upgrade --no-cache-dir -r requirement-setuptools.txt
+  else
+     echo "---> Upgrading setuptools to latest version"
+     pip install -U setuptools
+  fi
+fi
+
+if [[ ! -z "$ENABLE_PIPENV" ]]; then
+  install_pipenv
+  echo "---> Installing dependencies via pipenv ..."
+  if [[ -f Pipfile ]]; then
+    pipenv install --deploy
+  elif [[ -f requirements.txt ]]; then
+    pipenv install -r requirements.txt
+  fi
+  # pipenv check
+elif [[ -f requirements.txt ]]; then
+  echo "---> Installing dependencies ..."
+  pip install -r requirements.txt
+fi
+
+if [[ -f setup.py && -z "$DISABLE_SETUP_PY_PROCESSING" ]]; then
+  echo "---> Installing application(custom) ..."
+  pip install -e $APP_ROOT/src/ckan/
+fi
+
+
+popd > /dev/null
+
+# set permissions for any installed artifacts
+fix-permissions /opt/app-root
+

@@ -1,10 +1,11 @@
 NAME=ckan
-NAMESPACE=ckan
+NAMESPACE=pub-ckan
 OUTPUT_IMG="ckan:multi-v2"
-BASEBUILDER_IMG_NAME=ckan
-BASEBUILDER_IMG_TAG=ckan-2.8.2
-BASEBUILDER_REPO_URL=
-BASEBUILDER_REPO_AUTH=image-builder-gitlab-auth
-BASEBUILDER_REPO_REF="development"
-BASEBUILDER_REPO_CONTEXT_DIR="builders/ckan/ckan-ext"
-CKAN_EXT_SECRET=ckan-ext-custom
+CKAN_EXT_SECRET=ckan-ext-multiple
+# these values need to be customized only when using a local/private imageStream and repository as base for te build
+BASEBUILDER_IMG="quay.io/dagniel/ckan-on-openshift:2.8.2"
+BASEBUILDER_REPO_URL=https://github.com/dagniel/ckan-on-openshift.git
+#BASEBUILDER_REPO_AUTH=
+BASEBUILDER_REPO_REF="master"
+BASEBUILDER_REPO_CONTEXT_DIR="docker/ckan-extensions/multiple"
+BASEBUILDER_REPO_DOCKERFILE="Dockerfile"

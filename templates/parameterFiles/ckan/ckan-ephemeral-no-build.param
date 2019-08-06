@@ -1,0 +1,13 @@
+NAME=ckan
+NAMESPACE=pub-ckan
+APPLICATION_HOSTNAME='ckan.apps.oshift-pinfold.intra'
+RUNTIME_IMG_NAME="quay.io/dagniel/ckan-on-openshift:2.8.2"
+CKAN_ENV=ckan-env
+CKAN_CONF_MAP=ckan
+CKAN_PG_ENV=ckan-postgresql-env
+CKAN_PG_AUTH=ckan-postgresql-auth
+ENV_TZ=Europe/Amsterdam
+CKAN_RAM_LIMIT="512Mi"
+CKAN_RAM_REQ="128Mi"
+CKAN_CPU_REQ="200m"
+CKAN_CPU_LIMIT="500m"

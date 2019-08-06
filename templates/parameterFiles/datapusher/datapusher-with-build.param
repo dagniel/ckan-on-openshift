@@ -1,0 +1,10 @@
+NAME=bld-ckan
+NAMESPACE=pub-ckan
+BASE_IMG_NAME="docker.io/centos/python-27-centos7"
+DATAPUSHER_REPO_URL=https://github.com/ckan/datapusher.git
+DATAPUSHER_REPO_REF="0.0.15"
+ENV_TZ=Europe/Amsterdam
+DATAPUSHER_RAM_LIMIT="256Mi"
+DATAPUSHER_RAM_REQ="64Mi"
+DATAPUSHER_CPU_REQ="100m"
+DATAPUSHER_CPU_LIMIT="300m"
