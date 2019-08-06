@@ -21,24 +21,16 @@ parameters:
     description: The OpenShift Namespace where the resources will be created.
     value: ckan
     required: true
-  - name: OUTPUT_IMG_NAME
+  - name: OUTPUT_IMG
     displayName: ImageStream name for the output image
-    value: ckan
+    value: "ckan:multi-v2"
     required: true
-  - name: OUTPUT_IMG_TAG
-    displayName: Tag name for the output image
-    value: "multi-v2"
-    required: true
-  - name: BASEBUILDER_IMG_NAME
+  - name: BASEBUILDER_IMG
     displayName: Base builder's source image
     description: |-
       Base builder's source image name used to create the app's specific builder
       Must be in the form image:tag
-    value: "ckan"
-    required: true
-  - name: BASEBUILDER_IMG_TAG
-    displayName: Base builder's source image tag
-    value: "ckan-2.8.2"
+    value: "quay.io/dagniel/ckan-on-openshift:2.8.2"
     required: true
   - name: BASEBUILDER_REPO_URL
     displayName: Base builder repository URL
@@ -48,7 +40,7 @@ parameters:
   - name: BASEBUILDER_REPO_AUTH
     displayName: Base builder Secret for repository authentication
     description: The referenced OKD secret used to authenticaate to the specified repository
-    value: image-builder-gitlab-auth
+    value:
   - name: BASEBUILDER_REPO_REF
     displayName: Base builder repository Reference
     description: >-
@@ -60,7 +52,12 @@ parameters:
     description: >-
       Set this to the relative path to your project if it is not in the root of
       your repository.
-    value: "builders/ckan/ckan-ext"
+    value: "docker/ckan-extensions/multiple"
+  - name: BASEBUILDER_REPO_DOCKERFILE
+    displayName: Base builder repository's Dockerfile
+    description: >-
+      Set this to the path of the Dockerfile, relative to the context directory, used to build the extension(s)
+    value: "Dockerfile"
   - name: CKAN_EXT_SECRET
     displayName: Reference to secret holding custom install process for CKAN extensions
     description: |-
@@ -84,7 +81,7 @@ objects:
     output:
       to:
         kind: ImageStreamTag
-        name: ${OUTPUT_IMG_NAME}:${OUTPUT_IMG_TAG}
+        name: ${OUTPUT_IMG}
         namespace: ${NAMESPACE}
     runPolicy: Serial
     source:
@@ -93,20 +90,26 @@ objects:
         ref: ${BASEBUILDER_REPO_REF}
         uri: ${BASEBUILDER_REPO_URL}
       contextDir: ${BASEBUILDER_REPO_CONTEXT_DIR}
-      sourceSecret:
-        name: ${BASEBUILDER_REPO_AUTH}
+# authentication against a private repository
+#      sourceSecret:
+#        name: ${BASEBUILDER_REPO_AUTH}
       secrets:
         - secret:
             name: ${CKAN_EXT_SECRET}
+# for the Docker build strategy, the secret is placed in the current context dir
+# it is copied by the Dockerfile's COPY instruction
           destinationDir: ""
     strategy:
       type: Docker
       dockerStrategy:
-        dockerfilePath: "Dockerfile.multi"
+        dockerfilePath: "${BASEBUILDER_REPO_DOCKERFILE}"
         from:
-          kind: ImageStreamTag
-          name: ${BASEBUILDER_IMG_NAME}:${BASEBUILDER_IMG_TAG}
-          namespace: ${NAMESPACE}
+          kind: DockerImage
+          name: ${BASEBUILDER_IMG}
+## use this when referencing a local ImageStream
+#          kind: ImageStreamTag
+#          name: ${BASEBUILDER_IMG}
+#          namespace: ${NAMESPACE}
     successfulBuildsHistoryLimit: 2
     failedBuildsHistoryLimit: 5
     triggers:
@@ -180,8 +183,8 @@ objects:
 
       # 1.b private repository with username and password
 
-      user="openshift-test"
-      pass="origin2017"
+      user="myuser"
+      pass="mypass"
       repo_host="gitlab.myentity.net"
       repo="Project/My_CKAN_ext.git"
       git clone https://$user:$pass@$repo_host/$repo

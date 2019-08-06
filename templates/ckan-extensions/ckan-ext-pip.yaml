@@ -52,7 +52,7 @@ parameters:
     description: >-
       Set this to the relative path to your project if it is not in the root of
       your repository.
-    value: "docker/ckan-ext/pip"
+    value: "docker/ckan-extensions/pip"
   - name: BASEBUILDER_REPO_DOCKERFILE
     displayName: Base builder repository's Dockerfile
     description: >-

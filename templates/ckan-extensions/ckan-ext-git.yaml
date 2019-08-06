@@ -45,7 +45,7 @@ parameters:
     description: |-
       Base builder's source image name used to create the app's specific builder
       Must be in the form image:tag
-    value: "ckan:2.8.2"
+    value: "quay.io/dagniel/ckan-on-openshift:2.8.2"
     required: true
   - name: CKAN_EXT_SECRET
     displayName: Reference to Secret
