@@ -64,7 +64,9 @@ parameters:
       Reference to Secret object holding the script with the custom install process for CKAN extension(s)
       It should contain at least a key/filename called "ckan_ext_install.sh"
       Could conatain private keys to access private repositories via ssh
+
     value: ckan-ext-multiple
+
     required: true
 objects:
 - apiVersion: v1
@@ -118,7 +120,9 @@ objects:
 - apiVersion: v1
   kind: Secret
   metadata:
+
     name: ${NAME}-ext-multiple
+
     namespace: ${NAMESPACE}
     annotations:
       description: |-

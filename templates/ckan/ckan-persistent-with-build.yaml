@@ -164,6 +164,16 @@ objects:
   kind: ImageStream
   metadata:
     annotations:
+      description: Keeps track of changes in the builder image for ckan
+    labels:
+      app: ${NAME}
+      ckan.component: ckan
+    name: ${NAME}-builder
+    namespace: ${NAMESPACE}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
       description: Image stream for final ckan component
     labels:
       app: ${NAME}
