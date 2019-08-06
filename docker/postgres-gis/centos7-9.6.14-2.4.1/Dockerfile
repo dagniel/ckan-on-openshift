@@ -1,4 +1,4 @@
-FROM docker.io/crunchydata/crunchy-postgres-gis:centos7-9.6.12-2.4.1
+FROM docker.io/crunchydata/crunchy-postgres-gis:centos7-9.6.14-2.4.1
 
 LABEL io.k8s.display-name="Custom CKAN postgres build" \
 	io.k8s.description="Custom build for CKAN postgresql container based on https://github.com/CrunchyData/crunchy-containers/tree/2.4.1" \
