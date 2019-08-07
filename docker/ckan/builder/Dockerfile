@@ -11,7 +11,12 @@ ENV PGSQL_SCL="rh-postgresql96"
 
 USER 0
 
-RUN yum -y --setopt=tsflags=nodocs update --enablerepo=centosplus && \
+RUN yum -y remove kernel-headers && \
+	yum -y --setopt=tsflags=nodocs update --enablerepo="centosplus,centos-sclo-rh" && \
+	curl -fsL http://mirror.rackspace.com/elrepo/elrepo/el7/x86_64/RPMS/elrepo-release-7.0-4.el7.elrepo.noarch.rpm > /tmp/elrepo-release-7.0-4.el7.elrepo.noarch.rpm  && \
+	rpm -Uvh /tmp/elrepo-release-7.0-4.el7.elrepo.noarch.rpm && \
+	yum -y --setopt=tsflags=nodocs --enablerepo=elrepo-kernel install kernel-ml-headers && \
+	rm -rf /tmp/elrepo-release-7.0-4.el7.elrepo.noarch.rpm && \
 	INSTALL_PKGS="libxml2-devel libxslt-devel openssl-devel libffi-devel git" && \
 # need to install epel-release repo for the geos-devel package adn disable it avoid possible conflicts
 	yum install -y epel-release && \
@@ -23,6 +28,7 @@ RUN yum -y --setopt=tsflags=nodocs update --enablerepo=centosplus && \
 	rpm -V $INSTALL_PKGS && \
 	yum -y --setopt=tsflags=nodocs install --enablerepo=epel geos-devel && \
 	rpm -V geos-devel && \
+	rpm -e --nodeps centos-logos && \
 	yum -y clean all --enablerepo='*'
 
 # using base container env vars
