@@ -11,7 +11,8 @@ ENV PGSQL_SCL="rh-postgresql96"
 
 USER 0
 
-RUN INSTALL_PKGS="libxml2-devel libxslt-devel openssl-devel libffi-devel git" && \
+RUN yum -y --setopt=tsflags=nodocs update --enablerepo=centosplus && \
+	INSTALL_PKGS="libxml2-devel libxslt-devel openssl-devel libffi-devel git" && \
 # need to install epel-release repo for the geos-devel package adn disable it avoid possible conflicts
 	yum install -y epel-release && \
 	sed -i -e "s/^enabled=1/enabled=0/" /etc/yum.repos.d/epel.repo && \
