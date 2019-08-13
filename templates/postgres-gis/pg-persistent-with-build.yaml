@@ -223,7 +223,7 @@ objects:
       description: First layer build to obtain app's specific builder scripts
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql
     namespace: ${NAMESPACE}
   spec:
@@ -288,7 +288,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: postgresql
+          app.component: postgresql
           deploymentconfig: ${NAME}-postgresql
       spec:
         containers:

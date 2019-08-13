@@ -25,7 +25,7 @@ metadata:
       Note: This separate config file is similar in structure to the one inside the template.
       It is provided as a convenient way to edit and load the configuration settings herein.
   labels:
-    ckan.component: solr
+    app.component: solr
   name: solr-conf
 data:
   ckan-solr-init.sh: |-

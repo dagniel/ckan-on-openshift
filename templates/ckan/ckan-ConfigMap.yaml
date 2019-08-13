@@ -20,7 +20,7 @@ metadata:
         Note: This separate config file is similar in structure to the one inside the template.
         It is provided as a convenient way to edit and load the configuration settings herein.
   labels:
-    ckan.component: ckan
+    app.component: ckan
 data:
   CKAN_USE_CONF_TEMPLATE: "true"
   CKAN_DO_DB_INIT: "false"

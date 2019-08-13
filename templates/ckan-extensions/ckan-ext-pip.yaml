@@ -70,7 +70,7 @@ objects:
       description: Docker build to add specified extensions to a CKAN image
     labels:
       app: ${NAME}
-      ckan.component: ckan-ext
+      app.component: ckan-ext
     name: ${NAME}-ext-pip
     namespace: ${NAMESPACE}
   spec:

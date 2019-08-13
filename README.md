@@ -42,11 +42,11 @@ oc create -f templates/full-CKAN-stack.yaml -n my-ckan
 # Transfer the file between the two containers and invoke it inside the postgres Pod
 
 # copy file from CKAN's Pod to current local directory
-oc cp $(oc get pods -l ckan.component=ckan -o custom-columns=:.metadata.name):/opt/app-root/config/datapusher_setup.sql .
+oc cp $(oc get pods -l app.component=ckan -o custom-columns=:.metadata.name):/opt/app-root/config/datapusher_setup.sql .
 # copy the file to Postgres' Pod
-oc cp datapusher_setup.sql $(oc get pods -l ckan.component=postgresql -o custom-columns=:.metadata.name):/tmp/
+oc cp datapusher_setup.sql $(oc get pods -l app.component=postgresql -o custom-columns=:.metadata.name):/tmp/
 # run the contents inside Pod
-oc exec $(oc get pods -l ckan.component=postgresql -o custom-columns=:.metadata.name) -- psql -f /tmp/datapusher_setup.sql
+oc exec $(oc get pods -l app.component=postgresql -o custom-columns=:.metadata.name) -- psql -f /tmp/datapusher_setup.sql
 
 ```
 

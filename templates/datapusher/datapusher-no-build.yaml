@@ -55,7 +55,7 @@ objects:
       description: Defines how to deploy the application server
     labels:
       app: ${NAME}
-      ckan.component: datapusher
+      app.component: datapusher
     name: ${NAME}-datapusher
     namespace: ${NAMESPACE}
   spec:
@@ -67,7 +67,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: datapusher
+          app.component: datapusher
           deploymentconfig: ${NAME}-datapusher
       spec:
         containers:
@@ -130,7 +130,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      ckan.component: datapusher
+      app.component: datapusher
       app: ${NAME}
     name: ${NAME}-datapusher
   spec:

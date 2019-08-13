@@ -62,7 +62,7 @@ objects:
           Holds the install_ckan_ext.sh file
     labels:
       app: ${NAME}
-      ckan.component: ckan-ext
+      app.component: ckan-ext
     name: ${NAME}-ext-git
     namespace: ${NAMESPACE}
   type: Opaque
@@ -86,7 +86,7 @@ objects:
         and called by the assemble script when the $CKAN_IS_EXTENSION flag/env var is set to "true"
     labels:
       app: ${NAME}
-      ckan.component: ckan-ext
+      app.component: ckan-ext
     name: ${NAME}-ext-git
     namespace: ${NAMESPACE}
   spec:

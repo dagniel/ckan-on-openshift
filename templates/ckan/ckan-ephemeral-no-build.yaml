@@ -102,7 +102,7 @@ objects:
           Currently reference the services/auth from resources in the same project
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     name: ${NAME}-env
     namespace: ${NAMESPACE}
   type: Opaque
@@ -123,7 +123,7 @@ objects:
       description: Defines how to deploy the application server
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     name: ${NAME}
     namespace: ${NAMESPACE}
   spec:
@@ -135,7 +135,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: ckan
+          app.component: ckan
           deploymentconfig: ${NAME}
       spec:
         containers:
@@ -250,7 +250,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      ckan.component: ckan
+      app.component: ckan
       app: ${NAME}
     name: ${NAME}
   spec:
@@ -268,7 +268,7 @@ objects:
     namespace: ${NAMESPACE}
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     annotations:
       openshift.io/host.generated: "true"
   spec:
@@ -299,7 +299,7 @@ objects:
            - empty or other value("false") -> ckan.ini will be copied and used as is
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
   data:
     CKAN_USE_CONF_TEMPLATE: "true"
     CKAN_DO_DB_INIT: "true"

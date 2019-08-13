@@ -64,7 +64,7 @@ objects:
         description: Exposes and load balances the application pods
       labels:
         app: ${NAME}
-        ckan.component: solr
+        app.component: solr
       name: ${NAME}-solr
       namespace: ${NAMESPACE}
     spec:
@@ -83,7 +83,7 @@ objects:
         description: Defines how to deploy the application server
       labels:
         app: ${NAME}
-        ckan.component: solr
+        app.component: solr
       name: ${NAME}-solr
       namespace: ${NAMESPACE}
     spec:
@@ -95,7 +95,7 @@ objects:
         metadata:
           labels:
             app: ${NAME}
-            ckan.component: solr
+            app.component: solr
             deploymentconfig: ${NAME}-solr
         spec:
           containers:
@@ -183,7 +183,7 @@ objects:
           Holds configuration and initialization files used to deploy Solr.
       labels:
         app: ${NAME}
-        ckan.component: solr
+        app.component: solr
       name: solr-conf
       namespace: ${NAMESPACE}
     data:

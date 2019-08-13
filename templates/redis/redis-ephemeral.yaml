@@ -49,7 +49,7 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      ckan.component: redis
+      app.component: redis
       app: ${NAME}
     name: ${NAME}-redis
     namespace: ${NAMESPACE}
@@ -64,7 +64,7 @@ objects:
       metadata:
         creationTimestamp: null
         labels:
-          ckan.component: redis
+          app.component: redis
           app: ${NAME}
           deploymentconfig: ${NAME}-redis
       spec:
@@ -125,7 +125,7 @@ objects:
   kind: ConfigMap
   metadata:
     labels:
-      ckan.component: redis
+      app.component: redis
       app: ${NAME}
     name: ${NAME}-redis
   data:
@@ -180,7 +180,7 @@ objects:
   metadata:
     creationTimestamp: null
     labels:
-      ckan.component: redis
+      app.component: redis
       app: ${NAME}
     name: ${NAME}-redis
   spec:

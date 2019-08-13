@@ -76,7 +76,7 @@ objects:
       description: Docker build to add specified extensions to a CKAN image
     labels:
       app: ${NAME}
-      ckan.component: ckan-ext
+      app.component: ckan-ext
     name: ${NAME}-ext-multiple
     namespace: ${NAMESPACE}
   spec:
@@ -129,7 +129,7 @@ objects:
         bash script to provide complete procedure for insallation of multiple CKAN extensions
         Optionally: other files that are used by the main install script/process
     labels:
-      ckan.component: ckan-ext
+      app.component: ckan-ext
       app: ${NAME}
   type: Opaque
   stringData:

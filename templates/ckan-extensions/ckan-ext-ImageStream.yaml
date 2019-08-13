@@ -8,5 +8,5 @@ metadata:
       Note:The config file is supplied for convenience in the case a new ImageStream must be created
       (eg: to hold CKAN extension images)
   labels:
-    ckan.component: ckan
+    app.component: ckan
   name: ckan

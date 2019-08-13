@@ -184,7 +184,7 @@ objects:
       description: First layer build to obtain solr image specific to ckan
     labels:
       app: ${NAME}
-      ckan.component: solr
+      app.component: solr
     name: ${NAME}-solr-base
     namespace: ${NAMESPACE}
   spec:
@@ -218,7 +218,7 @@ objects:
       description: Second layer build to modify permissions in order to suit OKD requirements
     labels:
       app: ${NAME}
-      ckan.component: solr
+      app.component: solr
     name: ${NAME}-solr
     namespace: ${NAMESPACE}
   spec:
@@ -256,7 +256,7 @@ objects:
       description: Keeps track of changes in the final/OKD specific image
     labels:
       app: ${NAME}
-      ckan.component: solr
+      app.component: solr
     name: ${NAME}-solr
     namespace: ${NAMESPACE}
 - apiVersion: v1
@@ -266,7 +266,7 @@ objects:
       description: Exposes and load balances the application pods
     labels:
       app: ${NAME}
-      ckan.component: solr
+      app.component: solr
     name: ${NAME}-solr
     namespace: ${NAMESPACE}
   spec:
@@ -285,7 +285,7 @@ objects:
       description: Defines how to deploy the application server
     labels:
       app: ${NAME}
-      ckan.component: solr
+      app.component: solr
     name: ${NAME}-solr
     namespace: ${NAMESPACE}
   spec:
@@ -297,7 +297,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: solr
+          app.component: solr
           deploymentconfig: ${NAME}-solr
       spec:
         containers:
@@ -394,7 +394,7 @@ objects:
         Holds configuration and initialization files used to deploy Solr.
     labels:
       app: ${NAME}
-      ckan.component: solr
+      app.component: solr
     name: solr-conf
     namespace: ${NAMESPACE}
   data:
@@ -460,7 +460,7 @@ objects:
       description: S2I build to install and run application
     labels:
       app: ${NAME}
-      ckan.component: datapusher
+      app.component: datapusher
     name: ${NAME}-datapusher
     namespace: ${NAMESPACE}
   spec:
@@ -497,7 +497,7 @@ objects:
       description: Keeps track of changes in the final/OKD specific image
     labels:
       app: ${NAME}
-      ckan.component: datapusher
+      app.component: datapusher
     name: ${NAME}-datapusher
     namespace: ${NAMESPACE}
 - apiVersion: v1
@@ -507,7 +507,7 @@ objects:
       description: Defines how to deploy the application server
     labels:
       app: ${NAME}
-      ckan.component: datapusher
+      app.component: datapusher
     name: ${NAME}-datapusher
     namespace: ${NAMESPACE}
   spec:
@@ -519,7 +519,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: datapusher
+          app.component: datapusher
           deploymentconfig: ${NAME}-datapusher
       spec:
         containers:
@@ -591,7 +591,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      ckan.component: datapusher
+      app.component: datapusher
       app: ${NAME}
     name: ${NAME}-datapusher
   spec:
@@ -607,7 +607,7 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      ckan.component: redis
+      app.component: redis
       app: ${NAME}
     name: ${NAME}-redis
     namespace: ${NAMESPACE}
@@ -622,7 +622,7 @@ objects:
       metadata:
         creationTimestamp: null
         labels:
-          ckan.component: redis
+          app.component: redis
           app: ${NAME}
           deploymentconfig: ${NAME}-redis
       spec:
@@ -683,7 +683,7 @@ objects:
   kind: ConfigMap
   metadata:
     labels:
-      ckan.component: redis
+      app.component: redis
       app: ${NAME}
     name: ${NAME}-redis
   data:
@@ -738,7 +738,7 @@ objects:
   metadata:
     creationTimestamp: null
     labels:
-      ckan.component: redis
+      app.component: redis
       app: ${NAME}
     name: ${NAME}-redis
   spec:
@@ -757,7 +757,7 @@ objects:
     namespace: ${NAMESPACE}
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
   data:
 #    pg_hba.conf: |
 #      host all  all    0.0.0.0/0  md5
@@ -804,7 +804,7 @@ objects:
   metadata:
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql-env
     namespace: ${NAMESPACE}
   stringData:
@@ -820,7 +820,7 @@ objects:
   metadata:
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql-auth
     namespace: ${NAMESPACE}
   stringData:
@@ -839,7 +839,7 @@ objects:
       description: Image stream for custom postgres-gis
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql
     namespace: ${NAMESPACE}
 - apiVersion: v1
@@ -849,7 +849,7 @@ objects:
       description: First layer build to obtain app's specific builder scripts
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql
     namespace: ${NAMESPACE}
   spec:
@@ -886,7 +886,7 @@ objects:
     name: ${NAME}-postgresql
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
   spec:
     ports:
     - name: postgresql
@@ -902,7 +902,7 @@ objects:
   metadata:
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql
     namespace: ${NAMESPACE}
   spec:
@@ -914,7 +914,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: postgresql
+          app.component: postgresql
           deploymentconfig: ${NAME}-postgresql
       spec:
         containers:
@@ -1050,7 +1050,7 @@ objects:
           Currently reference the services/auth from resources in the same project
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     name: ${NAME}-env
     namespace: ${NAMESPACE}
   type: Opaque
@@ -1071,7 +1071,7 @@ objects:
       description: Image stream for final ckan component
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     name: ${NAME}
     namespace: ${NAMESPACE}
 - apiVersion: v1
@@ -1081,7 +1081,7 @@ objects:
       description: First layer build to obtain app's specific builder scripts
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     name: ${NAME}-builder
     namespace: ${NAMESPACE}
   spec:
@@ -1123,7 +1123,7 @@ objects:
       description: S2I build to install and run ckan component
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     name: ${NAME}
     namespace: ${NAMESPACE}
   spec:
@@ -1163,7 +1163,7 @@ objects:
       description: Defines how to deploy the application server
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     name: ${NAME}
     namespace: ${NAMESPACE}
   spec:
@@ -1175,7 +1175,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: ckan
+          app.component: ckan
           deploymentconfig: ${NAME}
       spec:
         containers:
@@ -1299,7 +1299,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      ckan.component: ckan
+      app.component: ckan
       app: ${NAME}
     name: ${NAME}
   spec:
@@ -1317,7 +1317,7 @@ objects:
     namespace: ${NAMESPACE}
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
     annotations:
       openshift.io/host.generated: "true"
   spec:
@@ -1348,7 +1348,7 @@ objects:
            - empty or other value("false") -> ckan.ini will be copied and used as is
     labels:
       app: ${NAME}
-      ckan.component: ckan
+      app.component: ckan
   data:
     CKAN_USE_CONF_TEMPLATE: "true"
     CKAN_DO_DB_INIT: "true"
