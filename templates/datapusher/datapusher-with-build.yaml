@@ -4,12 +4,12 @@ metadata:
   name: ckan-datapusher-with-build
   annotations:
     description: |-
-      Teplate for deploying the Datapusher component for ckan
+      Teplate for deploying the Datapusher component for CKAN
     iconClass: icon-python
-    openshift.io/display-name: Ckan - Datapusher component
+    openshift.io/display-name: CKAN - Datapusher component
     tags: ckan,datapusher,python
     template.openshift.io/long-description: >-
-      Ckan - Datapusher component
+      CKAN - Datapusher component
 parameters:
   - name: NAME
     displayName: Application name

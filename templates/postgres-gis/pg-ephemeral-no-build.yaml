@@ -4,7 +4,7 @@ metadata:
   name: ckan-postgres-gis-ephemeral
   annotations:
     description: |-
-      Template for deploying the postgres with postgis component for ckan.
+      Template for deploying the postgres with postgis component for CKAN.
       Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
@@ -14,11 +14,11 @@ metadata:
       values at random at the initial deployment. They are kept in subsequent Openshift objects (Secrets, ConfigMaps)
       and are referenced by different application components. So if they are changed/replaced a manual refactoring should be done.
     iconClass: icon-postgresql
-    openshift.io/display-name: Ckan - Postgresql(ephemeral) component
+    openshift.io/display-name: CKAN - Postgresql(ephemeral) component
     tags: ckan,postgresql,crunchydata
     template.openshift.io/long-description: >-
-      Template for deploying the postgres with postgis component for ckan.
-      Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers/tree/2.3.1
+      Template for deploying the postgres with postgis component for CKAN.
+      Based on CrunchyData's container image: https://github.com/CrunchyData/crunchy-containers
       Environment is kept in the 2 Secrets defined; to change deployment behaviour, must edit the values there and redeploy
 
       Template for components without persistent storage(ephemeral)
@@ -93,7 +93,7 @@ objects:
     namespace: ${NAMESPACE}
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
   data:
 #    pg_hba.conf: |
 #      host all  all    0.0.0.0/0  md5
@@ -140,7 +140,7 @@ objects:
   metadata:
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql-env
     namespace: ${NAMESPACE}
   stringData:
@@ -156,7 +156,7 @@ objects:
   metadata:
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql-auth
     namespace: ${NAMESPACE}
   stringData:
@@ -174,7 +174,7 @@ objects:
     name: ${NAME}-postgresql
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
   spec:
     ports:
     - name: postgresql
@@ -190,7 +190,7 @@ objects:
   metadata:
     labels:
       app: ${NAME}
-      ckan.component: postgresql
+      app.component: postgresql
     name: ${NAME}-postgresql
     namespace: ${NAMESPACE}
   spec:
@@ -202,7 +202,7 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          ckan.component: postgresql
+          app.component: postgresql
           deploymentconfig: ${NAME}-postgresql
       spec:
         containers:

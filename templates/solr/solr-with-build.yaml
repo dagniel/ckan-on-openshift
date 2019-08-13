@@ -4,13 +4,13 @@ metadata:
   name: ckan-solr-with-build
   annotations:
     description: |-
-      Teplate for deploying the Solr indexing component for ckan
+      Teplate for deploying the Solr indexing component for CKAN
       With objects to locally build and store needed images.
     iconClass: icon-openjdk
-    openshift.io/display-name:  Ckan - Solr component
+    openshift.io/display-name:  CKAN - Solr component
     tags: ckan,solr
     template.openshift.io/long-description: >-
-       Ckan - Solr component
+       CKAN - Solr component
 parameters:
   - name: NAME
     displayName: Application name

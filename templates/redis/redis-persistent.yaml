@@ -4,13 +4,13 @@ metadata:
   name: ckan-redis-persistent
   annotations:
     description: |-
-      Teplate for deploying the Redis DB component for ckan
+      Teplate for deploying the Redis DB component for CKAN
       Template for components with persistent storage
     iconClass: icon-redis
-    openshift.io/display-name: Ckan - Redis(persistent) component
+    openshift.io/display-name: CKAN - Redis(persistent) component
     tags: ckan,redis
     template.openshift.io/long-description: >-
-      Ckan - Redis(persistent) component
+      CKAN - Redis(persistent) component
 parameters:
   - name: NAME
     displayName: Application name
