@@ -44,7 +44,7 @@ parameters:
     description: -|
       OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
       Useful for logging
-    value: "Europe/Amsterdam"
+    value: "Europe/Bucharest"
   - name: DATAPUSHER_RAM_LIMIT
     displayName: Max ram allocatable for the Datapusher container
     value: "256Mi"
