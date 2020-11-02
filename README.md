@@ -283,7 +283,7 @@ It both initializes the needed extensions and creates the Datastore structure (D
 - extra env vars: (custom)container ports
 - refactor builder dir structure for postgres-gis
 
-- mention: all current config for custom builds is done based on publicly acessibly repos; for private repos the BuildConfigs 
+- mention: all current config for custom builds is done based on publicly acessible repos; for private repos the BuildConfigs 
 must be customized
 - patch images to solve security issues found by quay.io 
 - CKAN's db init 
