@@ -1,9 +1,10 @@
 NAME=bld-ckan
-NAMESPACE=pub-ckan
-BASE_IMG_NAME="registry.access.redhat.com/ubi8/python-27"
+NAMESPACE=myproject
+BASE_IMG_NAME="quay.io/dagniel/s2i-python:3.8"
 DATAPUSHER_REPO_URL=https://github.com/ckan/datapusher.git
 DATAPUSHER_REPO_REF="0.0.17"
 ENV_TZ=Europe/Bucharest
+DATAPUSHER_CONF_MAP=datapusher-dev
 DATAPUSHER_RAM_LIMIT="256Mi"
 DATAPUSHER_RAM_REQ="64Mi"
 DATAPUSHER_CPU_REQ="100m"

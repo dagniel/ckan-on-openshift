@@ -276,6 +276,14 @@ It both initializes the needed extensions and creates the Datastore structure (D
 
 =======
 
+# Changes
+- changed base images to ubi8
+- created base python container for Python 2.7 based on ubi8 core image based on https://github.com/sclorg/s2i-python-container/tree/master/2.7 (removed intermediate base image which bundeled un-needed pkgs)
+- datapusher deployment test for version 0.0.17
+
+
+=======
+
 # TODOs
 - refine documentation
 <br><br>

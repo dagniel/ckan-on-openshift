@@ -45,6 +45,10 @@ parameters:
       OShift environment variable inserted in Pod to set the environment variable for the timezone used by the base container.
       Useful for logging
     value: "Europe/Bucharest"
+  - name: DATAPUSHER_CONF_MAP
+    displayName: Reference to ConfigMap with runtime configuration
+    required: true
+    value: datapusher-dev
   - name: DATAPUSHER_RAM_LIMIT
     displayName: Max ram allocatable for the Datapusher container
     value: "256Mi"
@@ -135,13 +139,12 @@ objects:
           command:
             - /bin/bash
             - '-c'
-            - |
-              echo -e "#!"/"bin"/"bash\npython $HOME/datapusher/main.py $HOME/deployment/datapusher_settings.py\n" > $HOME/app.sh && \
-              chmod ug+rwx $HOME/app.sh && \
-              $STI_SCRIPTS_PATH/run
+            - $STI_SCRIPTS_PATH/run
           env:
             - name: TZ
               value: ${ENV_TZ}
+            - name: APP_SCRIPT
+              value: /opt/config/app.sh
           ports:
           - containerPort: 8800
             protocol: TCP
@@ -166,6 +169,20 @@ objects:
               memory: ${DATAPUSHER_RAM_REQ}
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /opt/config
+              name: template-config
+        volumes:
+        - name: template-config
+          configMap:
+            defaultMode: 0550
+            optional: false
+            name: ${DATAPUSHER_CONF_MAP}
+            items:
+            - key: app.sh
+              path: app.sh
+            - key: datapusher_settings.py
+              path: datapusher_settings.py
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
@@ -200,6 +217,7 @@ objects:
       app.component: datapusher
       app: ${NAME}
     name: ${NAME}-datapusher
+    namespace: ${NAMESPACE}
   spec:
     ports:
     - name: datapusher
